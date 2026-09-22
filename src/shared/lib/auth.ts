@@ -19,13 +19,19 @@ const googleProvider = () => {
   return provider
 }
 
+function isMobileBrowser() {
+  if (typeof navigator === 'undefined') return false
+  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+}
+
 function isRedirectFallbackError(error: unknown) {
   if (!(error instanceof FirebaseError)) return false
   return (
     error.code === 'auth/popup-blocked' ||
     error.code === 'auth/popup-closed-by-user' ||
     error.code === 'auth/cancelled-popup-request' ||
-    error.code === 'auth/operation-not-supported-in-this-environment'
+    error.code === 'auth/operation-not-supported-in-this-environment' ||
+    error.code === 'auth/argument-error'
   )
 }
 
@@ -88,24 +94,30 @@ export async function completeGoogleRedirect(): Promise<User | null> {
   }
 }
 
+async function startGoogleRedirect() {
+  try {
+    sessionStorage.setItem(REDIRECT_FLAG, '1')
+  } catch {
+    /* ignore */
+  }
+  await signInWithRedirect(getFirebaseAuth(), googleProvider())
+}
+
 /**
- * 모바일도 팝업을 먼저 시도합니다.
- * (redirect는 iOS/WebView에서 세션이 끊겨 로그인 화면이 다시 뜨는 경우가 많음)
+ * PC: 팝업 우선, 실패 시 redirect.
+ * 모바일: popup이 자주 깨지므로 redirect를 우선 사용.
  */
 export async function signInWithGoogle() {
-  const auth = getFirebaseAuth()
-  const provider = googleProvider()
+  if (isMobileBrowser()) {
+    await startGoogleRedirect()
+    return
+  }
 
   try {
-    await signInWithPopup(auth, provider)
+    await signInWithPopup(getFirebaseAuth(), googleProvider())
   } catch (error) {
     if (!isRedirectFallbackError(error)) throw error
-    try {
-      sessionStorage.setItem(REDIRECT_FLAG, '1')
-    } catch {
-      /* ignore */
-    }
-    await signInWithRedirect(auth, provider)
+    await startGoogleRedirect()
   }
 }
 

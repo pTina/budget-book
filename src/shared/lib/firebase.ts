@@ -1,6 +1,7 @@
 import { initializeApp, type FirebaseApp } from 'firebase/app'
 import {
   browserLocalPersistence,
+  browserPopupRedirectResolver,
   getAuth,
   indexedDBLocalPersistence,
   initializeAuth,
@@ -15,8 +16,14 @@ const required = [
   'VITE_FIREBASE_APP_ID',
 ] as const
 
+function env(key: (typeof required)[number]): string {
+  return String(import.meta.env[key] ?? '')
+    .trim()
+    .replace(/^["']|["']$/g, '')
+}
+
 export function getFirebaseConfigError(): string | null {
-  const missing = required.filter((key) => !import.meta.env[key])
+  const missing = required.filter((key) => !env(key))
   if (missing.length === 0) return null
   return `Firebase 설정이 없습니다. .env에 ${missing.join(', ')} 를 추가하세요.`
 }
@@ -30,10 +37,10 @@ function ensureApp(): FirebaseApp {
   if (error) throw new Error(error)
   if (!app) {
     app = initializeApp({
-      apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-      authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-      projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-      appId: import.meta.env.VITE_FIREBASE_APP_ID,
+      apiKey: env('VITE_FIREBASE_API_KEY'),
+      authDomain: env('VITE_FIREBASE_AUTH_DOMAIN'),
+      projectId: env('VITE_FIREBASE_PROJECT_ID'),
+      appId: env('VITE_FIREBASE_APP_ID'),
     })
   }
   return app
@@ -46,6 +53,8 @@ export function getFirebaseAuth(): Auth {
   try {
     authInstance = initializeAuth(firebaseApp, {
       persistence: [indexedDBLocalPersistence, browserLocalPersistence],
+      // initializeAuth 사용 시 popup/redirect에 필수. 없으면 auth/argument-error
+      popupRedirectResolver: browserPopupRedirectResolver,
     })
   } catch {
     authInstance = getAuth(firebaseApp)
