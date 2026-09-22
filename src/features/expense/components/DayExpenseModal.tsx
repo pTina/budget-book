@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import { Modal } from '@/shared/ui/Modal'
 import { useDisplayExpenses } from '../hooks/useExpenses'
 import { useUiStore } from '@/store/useUiStore'
@@ -19,19 +19,22 @@ export function DayExpenseModal() {
   )
   const total = sumDayAmount(display, selectedDate)
 
+  // 지출 폼이 위에 떠 있을 때는 목록 팝업을 닫지 않음 (Esc 등)
+  const handleClose = useCallback(() => {
+    if (useUiStore.getState().expenseFormOpen) return
+    closeDayExpense()
+  }, [closeDayExpense])
+
   return (
     <Modal
       open={open}
       title={`${formatDayHeading(selectedDate)}`}
-      onClose={closeDayExpense}
+      onClose={handleClose}
       footer={
         <button
           type="button"
           className="flex h-11 w-full items-center justify-center rounded-xl bg-ink text-sm font-semibold text-white"
-          onClick={() => {
-            closeDayExpense()
-            openExpenseForm({ date: selectedDate })
-          }}
+          onClick={() => openExpenseForm({ date: selectedDate })}
         >
           지출 추가
         </button>
@@ -53,10 +56,7 @@ export function DayExpenseModal() {
             <li key={e.id}>
               <ExpenseItem
                 expense={e}
-                onClick={() => {
-                  closeDayExpense()
-                  openExpenseForm({ id: e.id })
-                }}
+                onClick={() => openExpenseForm({ id: e.id })}
               />
             </li>
           ))}

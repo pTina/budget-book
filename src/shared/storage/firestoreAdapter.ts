@@ -130,17 +130,37 @@ async function seedIfNeeded() {
 }
 
 async function loadExpenses() {
-  if (cache.expenses) return cache.expenses
+  if (cache.expenses) {
+    cache.expenses = dedupeById(cache.expenses)
+    return cache.expenses
+  }
   const snap = await getDocs(col('expenses'))
   cache.expenses = snap.docs.map((d) => d.data() as Expense)
   return cache.expenses
 }
 
 async function loadRecurrings() {
-  if (cache.recurrings) return cache.recurrings
+  if (cache.recurrings) {
+    cache.recurrings = dedupeById(cache.recurrings)
+    return cache.recurrings
+  }
   const snap = await getDocs(col('recurrings'))
   cache.recurrings = snap.docs.map((d) => d.data() as Recurring)
   return cache.recurrings
+}
+
+function upsertById<T extends { id: string }>(list: T[], item: T): T[] {
+  const idx = list.findIndex((x) => x.id === item.id)
+  if (idx < 0) return [...list, item]
+  const next = list.slice()
+  next[idx] = item
+  return next
+}
+
+function dedupeById<T extends { id: string }>(list: T[]): T[] {
+  const map = new Map<string, T>()
+  for (const item of list) map.set(item.id, item)
+  return [...map.values()]
 }
 
 export function clearStorageCache() {
@@ -230,7 +250,7 @@ export const firestoreAdapter: DataAdapter = {
     const ts = nowIso()
     const category: Category = { ...input, id: createId('cat'), createdAt: ts, updatedAt: ts }
     await setDoc(doc(col('categories'), category.id), omitUndefined(category))
-    cache.categories = [...(cache.categories ?? []), category]
+    cache.categories = upsertById(cache.categories ?? [], category)
     return category
   },
 
@@ -289,7 +309,7 @@ export const firestoreAdapter: DataAdapter = {
     const ts = nowIso()
     const method: PaymentMethod = { ...input, id: createId('pm'), createdAt: ts, updatedAt: ts }
     await setDoc(doc(col('paymentMethods'), method.id), omitUndefined(method))
-    cache.paymentMethods = [...(cache.paymentMethods ?? []), method]
+    cache.paymentMethods = upsertById(cache.paymentMethods ?? [], method)
     return method
   },
 
@@ -340,7 +360,7 @@ export const firestoreAdapter: DataAdapter = {
     const ts = nowIso()
     const expense: Expense = { ...input, id: createId('exp'), createdAt: ts, updatedAt: ts }
     await setDoc(doc(col('expenses'), expense.id), omitUndefined(expense))
-    cache.expenses = [...(await loadExpenses()), expense]
+    cache.expenses = upsertById(await loadExpenses(), expense)
     return expense
   },
 
@@ -368,7 +388,7 @@ export const firestoreAdapter: DataAdapter = {
     const ts = nowIso()
     const recurring: Recurring = { ...input, id: createId('rec'), createdAt: ts, updatedAt: ts }
     await setDoc(doc(col('recurrings'), recurring.id), omitUndefined(recurring))
-    cache.recurrings = [...(await loadRecurrings()), recurring]
+    cache.recurrings = upsertById(await loadRecurrings(), recurring)
     return recurring
   },
 

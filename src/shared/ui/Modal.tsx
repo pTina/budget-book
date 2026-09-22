@@ -18,10 +18,14 @@ type ModalProps = {
   initialFocusSelector?: string
   size?: 'md' | 'lg' | 'sm'
   labelledBy?: string
+  /** 중첩 모달용 z-index (기본 50) */
+  zIndexClass?: string
 }
 
 const FOCUSABLE =
   'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])'
+
+let openModalCount = 0
 
 export function Modal({
   open,
@@ -32,6 +36,7 @@ export function Modal({
   initialFocusSelector,
   size = 'md',
   labelledBy,
+  zIndexClass = 'z-50',
 }: ModalProps) {
   const titleId = useId()
   const panelRef = useRef<HTMLDivElement>(null)
@@ -40,6 +45,7 @@ export function Modal({
   useEffect(() => {
     if (!open) return
     triggerRef.current = document.activeElement
+    openModalCount += 1
     document.body.classList.add('modal-open')
 
     const t = window.setTimeout(() => {
@@ -53,7 +59,10 @@ export function Modal({
 
     return () => {
       window.clearTimeout(t)
-      document.body.classList.remove('modal-open')
+      openModalCount = Math.max(0, openModalCount - 1)
+      if (openModalCount === 0) {
+        document.body.classList.remove('modal-open')
+      }
       if (triggerRef.current instanceof HTMLElement) {
         triggerRef.current.focus()
       }
@@ -63,10 +72,9 @@ export function Modal({
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation()
-        onClose()
-      }
+      if (e.key !== 'Escape') return
+      e.stopPropagation()
+      onClose()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
@@ -95,7 +103,10 @@ export function Modal({
     size === 'lg' ? 'max-w-[560px]' : size === 'sm' ? 'max-w-[360px]' : 'max-w-[440px]'
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="presentation">
+    <div
+      className={`fixed inset-0 ${zIndexClass} flex items-center justify-center p-4`}
+      role="presentation"
+    >
       <button
         type="button"
         aria-label="닫기"

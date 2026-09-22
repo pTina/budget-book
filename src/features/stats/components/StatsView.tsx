@@ -6,14 +6,20 @@ import { useUiStore } from '@/store/useUiStore'
 import { calcMonthStats } from '../utils/stats'
 import { calcBudgetSummary } from '@/features/budget/utils/budget'
 import { formatAmount, parseISO } from '@/shared/lib/format'
+import { useHorizontalSwipe } from '@/shared/lib/useHorizontalSwipe'
 import { DonutChart } from './DonutChart'
 
 export function StatsView() {
   const monthKey = useUiStore((s) => s.monthKey)
+  const shiftMonth = useUiStore((s) => s.shiftMonth)
   const { display } = useDisplayExpenses()
   const { data: categories = [] } = useCategories()
   const { data: budget } = useBudget()
   const { monthSpent } = useDisplayExpenses()
+  const swipe = useHorizontalSwipe({
+    onSwipeLeft: () => shiftMonth(1),
+    onSwipeRight: () => shiftMonth(-1),
+  })
 
   const month = useMemo(() => parseISO(`${monthKey}-01`), [monthKey])
   const stats = useMemo(
@@ -39,7 +45,10 @@ export function StatsView() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[900px] flex-1 overflow-y-auto p-4 md:p-6">
+    <div
+      className="mx-auto w-full max-w-[900px] flex-1 overflow-y-auto p-4 touch-pan-y md:p-6"
+      {...swipe}
+    >
       <div className="flex flex-col gap-6 md:flex-row md:items-center md:gap-10">
         <DonutChart total={stats.total} ranks={stats.ranks} size={168} />
 
