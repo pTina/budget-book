@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+:root {
+  --font-sans: "IBM Plex Sans KR", ui-sans-serif, system-ui, sans-serif;
+  --color-ink: #2B2D31;
+  --color-muted: #5C6068;
+  --color-faint: #9CA1A9;
+  --color-line: #EDEEF1;
+  --color-line-strong: #E0E2E7;
+  --color-canvas: #FAFAFB;
+  --color-paper: #FFFFFF;
+  --color-accent: #D8B4D6;
+  --color-sunday: #E57373;
+  --color-work: #C0E8DD;
+  --color-personal: #A3C6EB;
+  --color-peach: #F3D1C8;
+  --color-lavender: #E4D4F0;
+  --color-butter: #F7E2B8;
+  --color-sage: #D7E4C0;
+  --color-blush: #F2CBD8;
+  --color-periwinkle: #D2D8EA;
+  --color-rose: #E8A3A3;
+  --shadow-panel: 0 18px 40px rgba(43, 45, 49, 0.06);
+  --color-danger: #E57373;
+  --color-warning: #F0A202;
+  --focus-ring: 0 0 0 3px rgba(216, 180, 214, 0.55);
+}
+
+@theme {
+  --font-sans: var(--font-sans);
+  --color-ink: var(--color-ink);
+  --color-muted: var(--color-muted);
+  --color-faint: var(--color-faint);
+  --color-line: var(--color-line);
+  --color-line-strong: var(--color-line-strong);
+  --color-canvas: var(--color-canvas);
+  --color-paper: var(--color-paper);
+  --color-accent: var(--color-accent);
+  --color-sunday: var(--color-sunday);
+  --color-work: var(--color-work);
+  --color-personal: var(--color-personal);
+  --color-peach: var(--color-peach);
+  --color-lavender: var(--color-lavender);
+  --color-butter: var(--color-butter);
+  --color-sage: var(--color-sage);
+  --color-blush: var(--color-blush);
+  --color-periwinkle: var(--color-periwinkle);
+  --color-rose: var(--color-rose);
+  --color-danger: var(--color-danger);
+  --color-warning: var(--color-warning);
+  --shadow-panel: var(--shadow-panel);
+}
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+  background: var(--color-canvas);
+  -webkit-font-smoothing: antialiased;
+}
+body.modal-open { overflow: hidden; }
+button, input, select, textarea { font: inherit; }
+input, select, textarea { color: inherit; }
+:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: 4px; }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
