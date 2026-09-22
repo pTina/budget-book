@@ -1,17 +1,12 @@
 import { getFirebaseAuth } from '@/shared/lib/firebase'
-import { FirebaseError } from 'firebase/app'
 import {
   GoogleAuthProvider,
-  getRedirectResult,
   onAuthStateChanged,
   signInWithPopup,
-  signInWithRedirect,
   signOut,
   type User,
 } from 'firebase/auth'
 import { useEffect, useState } from 'react'
-
-const REDIRECT_FLAG = 'budget-book:google-redirect'
 
 const googleProvider = () => {
   const provider = new GoogleAuthProvider()
@@ -19,25 +14,10 @@ const googleProvider = () => {
   return provider
 }
 
-function isMobileBrowser() {
-  if (typeof navigator === 'undefined') return false
-  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
-}
-
-function isRedirectFallbackError(error: unknown) {
-  if (!(error instanceof FirebaseError)) return false
-  return (
-    error.code === 'auth/popup-blocked' ||
-    error.code === 'auth/popup-closed-by-user' ||
-    error.code === 'auth/cancelled-popup-request' ||
-    error.code === 'auth/operation-not-supported-in-this-environment' ||
-    error.code === 'auth/argument-error'
-  )
-}
-
 /** persistence는 initializeAuth에서 설정됨 */
 export async function initAuthPersistence() {
-  getFirebaseAuth()
+  const auth = getFirebaseAuth()
+  await auth.authStateReady()
 }
 
 export function subscribeAuth(onUser: (user: User | null) => void) {
@@ -66,59 +46,9 @@ export function requireUid() {
   return uid
 }
 
-export function isGoogleRedirectPending() {
-  try {
-    return sessionStorage.getItem(REDIRECT_FLAG) === '1'
-  } catch {
-    return false
-  }
-}
-
-export async function completeGoogleRedirect(): Promise<User | null> {
-  const auth = getFirebaseAuth()
-  try {
-    const result = await getRedirectResult(auth)
-    try {
-      sessionStorage.removeItem(REDIRECT_FLAG)
-    } catch {
-      /* ignore */
-    }
-    return result?.user ?? auth.currentUser
-  } catch (error) {
-    try {
-      sessionStorage.removeItem(REDIRECT_FLAG)
-    } catch {
-      /* ignore */
-    }
-    throw error
-  }
-}
-
-async function startGoogleRedirect() {
-  try {
-    sessionStorage.setItem(REDIRECT_FLAG, '1')
-  } catch {
-    /* ignore */
-  }
-  await signInWithRedirect(getFirebaseAuth(), googleProvider())
-}
-
-/**
- * PC: 팝업 우선, 실패 시 redirect.
- * 모바일: popup이 자주 깨지므로 redirect를 우선 사용.
- */
+/** GitHub Pages에서는 redirect가 세션을 잃어 다시 로그인 화면이 뜨므로 팝업만 사용 */
 export async function signInWithGoogle() {
-  if (isMobileBrowser()) {
-    await startGoogleRedirect()
-    return
-  }
-
-  try {
-    await signInWithPopup(getFirebaseAuth(), googleProvider())
-  } catch (error) {
-    if (!isRedirectFallbackError(error)) throw error
-    await startGoogleRedirect()
-  }
+  await signInWithPopup(getFirebaseAuth(), googleProvider())
 }
 
 export function logOut() {
