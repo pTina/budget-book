@@ -13,6 +13,7 @@ export function ExpenseItem({ expense, onClick }: Props) {
   const { data: methods = [] } = usePaymentMethods()
   const cat = categories.find((c) => c.id === expense.categoryId)
   const method = methods.find((m) => m.id === expense.paymentMethodId)
+  const memo = expense.memo?.trim()
 
   return (
     <button
@@ -26,26 +27,35 @@ export function ExpenseItem({ expense, onClick }: Props) {
         aria-hidden="true"
       />
       <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-1.5">
-          <span className="truncate text-sm font-medium text-ink">{expense.title}</span>
-          {expense.recurringId ? (
-            <span className="text-faint" aria-hidden="true" title="반복 지출">
-              ↻
+        <span className="flex items-start justify-between gap-3">
+          <span className="min-w-0 flex-1">
+            <span className="flex items-center gap-1.5">
+              <span className="truncate text-sm font-medium text-ink">{expense.title}</span>
+              {expense.recurringId ? (
+                <span className="text-faint" aria-hidden="true" title="반복 지출">
+                  ↻
+                </span>
+              ) : null}
+              {expense.isScheduled ? (
+                <span className="rounded bg-canvas px-1.5 py-0.5 text-[10px] font-medium text-muted">
+                  예정
+                </span>
+              ) : null}
             </span>
-          ) : null}
-          {expense.isScheduled ? (
-            <span className="rounded bg-canvas px-1.5 py-0.5 text-[10px] font-medium text-muted">
-              예정
+            <span className="mt-0.5 block truncate text-xs text-faint">
+              {cat?.name ?? '미분류'}
+              {method ? ` / ${method.name}` : ''}
             </span>
-          ) : null}
+          </span>
+          <span className="shrink-0 text-sm font-semibold tabular-nums text-ink">
+            {formatAmount(expense.amount)}
+          </span>
         </span>
-        <span className="mt-0.5 block truncate text-xs text-faint">
-          {cat?.name ?? '미분류'}
-          {method ? ` / ${method.name}` : ''}
-        </span>
-      </span>
-      <span className="shrink-0 text-sm font-semibold tabular-nums text-ink">
-        {formatAmount(expense.amount)}
+        {memo ? (
+          <span className="mt-1.5 block whitespace-pre-wrap text-sm text-ink leading-relaxed">
+            {memo}
+          </span>
+        ) : null}
       </span>
     </button>
   )

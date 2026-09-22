@@ -23,6 +23,8 @@
   --shadow-panel: 0 18px 40px rgba(43, 45, 49, 0.06);
   --color-danger: #E57373;
   --color-warning: #F0A202;
+  --color-fill: #3D4450;
+  --color-warn: #D9534F;
   --focus-ring: 0 0 0 3px rgba(216, 180, 214, 0.55);
 }
 
@@ -48,6 +50,8 @@
   --color-rose: var(--color-rose);
   --color-danger: var(--color-danger);
   --color-warning: var(--color-warning);
+  --color-fill: var(--color-fill);
+  --color-warn: var(--color-warn);
   --shadow-panel: var(--shadow-panel);
 }
 

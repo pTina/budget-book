@@ -13,17 +13,12 @@ import {
   useRecurringMutations,
   useRecurrings,
 } from '../hooks/useExpenses'
+import { useDeleteExpense } from '../hooks/useDeleteExpense'
 import { useUiStore } from '@/store/useUiStore'
 import { formatAmount, parseAmountInput } from '@/shared/lib/format'
-import {
-  buildThisOnlyDelete,
-  buildThisOnlyUpdate,
-  createSkipMarker,
-  splitRecurringFromDate,
-} from '../utils/recurring'
+import { buildThisOnlyUpdate, splitRecurringFromDate } from '../utils/recurring'
 import { CATEGORY_PALETTE } from '@/shared/storage'
 import type { DisplayExpense } from '@/shared/types'
-import { parseISO } from 'date-fns'
 
 type FormState = {
   amount: string
@@ -59,8 +54,8 @@ export function ExpenseFormModal() {
   const recurringOn = useUiStore((s) => s.expenseFormRecurringOn)
   const selectedDate = useUiStore((s) => s.selectedDate)
   const closeExpenseForm = useUiStore((s) => s.closeExpenseForm)
-  const askConfirm = useUiStore((s) => s.askConfirm)
   const askScope = useUiStore((s) => s.askScope)
+  const { deleteExpense } = useDeleteExpense()
 
   const { data: categories = [] } = useCategories()
   const { data: methods = [] } = usePaymentMethods()
@@ -228,57 +223,8 @@ export function ExpenseFormModal() {
 
   const onDelete = async () => {
     if (!target) return
-    const ok = await askConfirm({
-      title: '이 지출을 삭제할까요?',
-      description: target.recurringId
-        ? '반복 지출인 경우 삭제 범위를 이어서 선택합니다.'
-        : undefined,
-    })
-    if (!ok) return
-
-    if (target.recurringId) {
-      const scope = await askScope()
-      if (!scope) return
-
-      if (scope === 'this') {
-        const result = buildThisOnlyDelete(target)
-        if (result.type === 'skip' && result.expense) {
-          await expenseMut.create.mutateAsync(result.expense)
-        } else if (result.type === 'skip' && result.id) {
-          await expenseMut.update.mutateAsync({
-            id: result.id,
-            isSkipped: true,
-            isException: true,
-          })
-        } else if (result.type === 'delete' && result.id) {
-          await expenseMut.remove.mutateAsync(result.id)
-        }
-      } else {
-        const recurring = recurrings.find((r) => r.id === target.recurringId)
-        if (!recurring) return
-        const from = parseISO(target.date)
-        const dayBefore = new Date(from.getFullYear(), from.getMonth(), from.getDate() - 1)
-        const endDate = `${dayBefore.getFullYear()}-${String(dayBefore.getMonth() + 1).padStart(2, '0')}-${String(dayBefore.getDate()).padStart(2, '0')}`
-
-        if (recurring.startDate >= target.date) {
-          await recurringMut.remove.mutateAsync(recurring.id)
-        } else {
-          await recurringMut.update.mutateAsync({ id: recurring.id, endDate })
-        }
-
-        // 해당일 이후 예외 실지출 제거
-        for (const e of expenses) {
-          if (e.recurringId === recurring.id && e.date >= target.date) {
-            await expenseMut.remove.mutateAsync(e.id)
-          }
-        }
-      }
-    } else if (target.sourceExpenseId) {
-      await expenseMut.remove.mutateAsync(target.sourceExpenseId)
-    } else if (target.isVirtual) {
-      await expenseMut.create.mutateAsync(createSkipMarker(target))
-    }
-    closeExpenseForm()
+    const done = await deleteExpense(target)
+    if (done) closeExpenseForm()
   }
 
   const addCategory = async () => {

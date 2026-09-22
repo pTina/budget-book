@@ -1,3 +1,4 @@
+import { Button } from './Button'
 import { Modal } from './Modal'
 import { useUiStore } from '@/store/useUiStore'
 
@@ -6,38 +7,44 @@ export function ConfirmDialog() {
   const title = useUiStore((s) => s.confirmTitle)
   const description = useUiStore((s) => s.confirmDescription)
   const confirmLabel = useUiStore((s) => s.confirmConfirmLabel)
-  const tone = useUiStore((s) => s.confirmTone)
   const resolveConfirm = useUiStore((s) => s.resolveConfirm)
 
   return (
     <Modal
       open={open}
       title={title}
+      hideTitle
       onClose={() => resolveConfirm(false)}
       size="sm"
+      zIndexClass="z-[60]"
+      initialFocusSelector="[data-confirm-action]"
       footer={
         <>
-          <button
-            type="button"
-            className="h-10 rounded-xl px-4 text-sm font-medium text-muted hover:bg-canvas"
+          <Button
+            variant="secondary"
+            size="lg"
+            className="min-w-0 flex-1"
             onClick={() => resolveConfirm(false)}
           >
             취소
-          </button>
-          <button
-            type="button"
-            className={`h-10 rounded-xl px-4 text-sm font-semibold text-white ${
-              tone === 'danger' ? 'bg-danger' : 'bg-ink'
-            }`}
+          </Button>
+          <Button
+            variant="primary"
+            size="lg"
+            className="min-w-0 flex-1"
             onClick={() => resolveConfirm(true)}
+            data-confirm-action
             autoFocus
           >
             {confirmLabel}
-          </button>
+          </Button>
         </>
       }
     >
-      {description ? <p className="m-0 text-sm text-muted leading-relaxed">{description}</p> : null}
+      <p className="m-0 text-center text-base font-semibold text-ink leading-relaxed">{title}</p>
+      {description ? (
+        <p className="mt-2 mb-0 text-center text-sm text-muted leading-relaxed">{description}</p>
+      ) : null}
     </Modal>
   )
 }

@@ -20,6 +20,7 @@ type ModalProps = {
   labelledBy?: string
   /** 중첩 모달용 z-index (기본 50) */
   zIndexClass?: string
+  hideTitle?: boolean
 }
 
 const FOCUSABLE =
@@ -37,6 +38,7 @@ export function Modal({
   size = 'md',
   labelledBy,
   zIndexClass = 'z-50',
+  hideTitle = false,
 }: ModalProps) {
   const titleId = useId()
   const panelRef = useRef<HTMLDivElement>(null)
@@ -121,8 +123,15 @@ export function Modal({
         className={`relative z-10 flex w-full ${maxW} max-h-[calc(100vh-32px)] flex-col rounded-2xl bg-paper shadow-[var(--shadow-panel)]`}
         onKeyDown={onKeyDown}
       >
-        <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
-          <h2 id={titleId} className="m-0 text-base font-semibold text-ink">
+        <div
+          className={`flex items-center gap-3 px-5 ${
+            hideTitle ? 'justify-end pt-4 pb-0' : 'justify-between border-b border-line py-4'
+          }`}
+        >
+          <h2
+            id={titleId}
+            className={hideTitle ? 'sr-only' : 'm-0 text-base font-semibold text-ink'}
+          >
             {title}
           </h2>
           <button
@@ -136,7 +145,11 @@ export function Modal({
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
         {footer ? (
-          <div className="flex items-center justify-end gap-2 border-t border-line px-5 py-3">
+          <div
+            className={`flex items-center justify-end gap-2 px-5 py-3 ${
+              hideTitle ? '' : 'border-t border-line'
+            }`}
+          >
             {footer}
           </div>
         ) : null}
