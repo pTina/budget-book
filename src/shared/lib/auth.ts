@@ -2,10 +2,8 @@ import { getFirebaseAuth } from '@/shared/lib/firebase'
 import { FirebaseError } from 'firebase/app'
 import {
   GoogleAuthProvider,
-  browserLocalPersistence,
   getRedirectResult,
   onAuthStateChanged,
-  setPersistence,
   signInWithPopup,
   signInWithRedirect,
   signOut,
@@ -13,19 +11,27 @@ import {
 } from 'firebase/auth'
 import { useEffect, useState } from 'react'
 
-const googleProvider = () => new GoogleAuthProvider()
+const REDIRECT_FLAG = 'budget-book:google-redirect'
 
-function prefersRedirectSignIn() {
-  if (typeof navigator === 'undefined') return false
-  const ua = navigator.userAgent
-  const iOS =
-    /iPad|iPhone|iPod/.test(ua) ||
-    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-  return iOS || /Android/i.test(ua)
+const googleProvider = () => {
+  const provider = new GoogleAuthProvider()
+  provider.setCustomParameters({ prompt: 'select_account' })
+  return provider
 }
 
+function isRedirectFallbackError(error: unknown) {
+  if (!(error instanceof FirebaseError)) return false
+  return (
+    error.code === 'auth/popup-blocked' ||
+    error.code === 'auth/popup-closed-by-user' ||
+    error.code === 'auth/cancelled-popup-request' ||
+    error.code === 'auth/operation-not-supported-in-this-environment'
+  )
+}
+
+/** persistence는 initializeAuth에서 설정됨 */
 export async function initAuthPersistence() {
-  await setPersistence(getFirebaseAuth(), browserLocalPersistence)
+  getFirebaseAuth()
 }
 
 export function subscribeAuth(onUser: (user: User | null) => void) {
@@ -54,31 +60,52 @@ export function requireUid() {
   return uid
 }
 
-export async function completeGoogleRedirect() {
-  await getRedirectResult(getFirebaseAuth())
+export function isGoogleRedirectPending() {
+  try {
+    return sessionStorage.getItem(REDIRECT_FLAG) === '1'
+  } catch {
+    return false
+  }
 }
 
+export async function completeGoogleRedirect(): Promise<User | null> {
+  const auth = getFirebaseAuth()
+  try {
+    const result = await getRedirectResult(auth)
+    try {
+      sessionStorage.removeItem(REDIRECT_FLAG)
+    } catch {
+      /* ignore */
+    }
+    return result?.user ?? auth.currentUser
+  } catch (error) {
+    try {
+      sessionStorage.removeItem(REDIRECT_FLAG)
+    } catch {
+      /* ignore */
+    }
+    throw error
+  }
+}
+
+/**
+ * 모바일도 팝업을 먼저 시도합니다.
+ * (redirect는 iOS/WebView에서 세션이 끊겨 로그인 화면이 다시 뜨는 경우가 많음)
+ */
 export async function signInWithGoogle() {
   const auth = getFirebaseAuth()
   const provider = googleProvider()
 
-  if (prefersRedirectSignIn()) {
-    await signInWithRedirect(auth, provider)
-    return
-  }
-
   try {
     await signInWithPopup(auth, provider)
   } catch (error) {
-    if (
-      error instanceof FirebaseError &&
-      (error.code === 'auth/popup-blocked' ||
-        error.code === 'auth/operation-not-supported-in-this-environment')
-    ) {
-      await signInWithRedirect(auth, provider)
-      return
+    if (!isRedirectFallbackError(error)) throw error
+    try {
+      sessionStorage.setItem(REDIRECT_FLAG, '1')
+    } catch {
+      /* ignore */
     }
-    throw error
+    await signInWithRedirect(auth, provider)
   }
 }
 

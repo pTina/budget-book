@@ -4,6 +4,7 @@ import { LoginPage } from '@/pages/LoginPage'
 import {
   completeGoogleRedirect,
   initAuthPersistence,
+  isGoogleRedirectPending,
   subscribeAuth,
 } from '@/shared/lib/auth'
 import { getFirebaseConfigError } from '@/shared/lib/firebase'
@@ -25,6 +26,7 @@ function FirebaseGate({ children }: { children: ReactNode }) {
   const [signedIn, setSignedIn] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loginError, setLoginError] = useState<string | null>(null)
+  const [redirectPending] = useState(() => isGoogleRedirectPending())
 
   useEffect(() => {
     if (configError) return
@@ -115,7 +117,7 @@ function FirebaseGate({ children }: { children: ReactNode }) {
   if (!ready) {
     return (
       <div className="grid h-full place-items-center bg-canvas text-sm text-muted">
-        불러오는 중…
+        {redirectPending ? '로그인 처리 중…' : '불러오는 중…'}
       </div>
     )
   }

@@ -1,5 +1,11 @@
 import { initializeApp, type FirebaseApp } from 'firebase/app'
-import { getAuth, type Auth } from 'firebase/auth'
+import {
+  browserLocalPersistence,
+  getAuth,
+  indexedDBLocalPersistence,
+  initializeAuth,
+  type Auth,
+} from 'firebase/auth'
 import { getFirestore, type Firestore } from 'firebase/firestore'
 
 const required = [
@@ -33,8 +39,17 @@ function ensureApp(): FirebaseApp {
   return app
 }
 
+/** 모바일 Safari 등에서 redirect 로그인 세션 유지를 위해 IndexedDB 우선 */
 export function getFirebaseAuth(): Auth {
-  if (!authInstance) authInstance = getAuth(ensureApp())
+  if (authInstance) return authInstance
+  const firebaseApp = ensureApp()
+  try {
+    authInstance = initializeAuth(firebaseApp, {
+      persistence: [indexedDBLocalPersistence, browserLocalPersistence],
+    })
+  } catch {
+    authInstance = getAuth(firebaseApp)
+  }
   return authInstance
 }
 
