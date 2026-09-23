@@ -257,7 +257,6 @@ export function ExpenseFormModal() {
       title={isEdit ? '지출 수정' : '지출 등록'}
       onClose={closeExpenseForm}
       initialFocusSelector="#expense-amount"
-      zIndexClass="z-[60]"
       footer={
         <div className="flex w-full items-center justify-end gap-2">
           {isEdit ? (

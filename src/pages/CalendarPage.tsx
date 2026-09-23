@@ -8,6 +8,7 @@ import { ConfirmDialog, ScopeDialog } from '@/shared/ui/ConfirmDialog'
 import { BudgetSummary } from '@/features/budget/components/BudgetSummary'
 import { useBudget } from '@/features/budget/hooks/useBudget'
 import { StatsView } from '@/features/stats/components/StatsView'
+import { DetailsView } from '@/features/stats/components/DetailsView'
 import { useUiStore } from '@/store/useUiStore'
 
 export function CalendarPage() {
@@ -21,6 +22,8 @@ export function CalendarPage() {
 
       {viewMode === 'stats' ? (
         <StatsView />
+      ) : viewMode === 'details' ? (
+        <DetailsView />
       ) : (
         <>
           {showMobileBudget ? (

@@ -16,7 +16,6 @@ export function ConfirmDialog() {
       hideTitle
       onClose={() => resolveConfirm(false)}
       size="sm"
-      zIndexClass="z-[60]"
       initialFocusSelector="[data-confirm-action]"
       footer={
         <>

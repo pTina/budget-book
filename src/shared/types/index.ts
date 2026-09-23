@@ -84,6 +84,6 @@ export type DisplayExpense = {
   sourceExpenseId?: string
 }
 
-export type ViewMode = 'calendar' | 'stats'
+export type ViewMode = 'calendar' | 'stats' | 'details'
 
 export type RecurringEditScope = 'this' | 'following'

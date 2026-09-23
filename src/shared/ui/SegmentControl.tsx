@@ -34,7 +34,7 @@ export function SegmentControl<T extends string>({
             type="button"
             role="tab"
             aria-selected={selected}
-            className={`h-9 rounded-lg px-4 text-sm font-medium transition-colors ${
+            className={`h-8 rounded-lg px-2 text-xs font-medium transition-colors md:h-9 md:px-3 md:text-sm ${
               fullWidth ? 'flex-1' : ''
             } ${
               selected

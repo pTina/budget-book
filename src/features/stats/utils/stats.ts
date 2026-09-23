@@ -42,6 +42,71 @@ export type MonthStats = {
  * - 하루 평균 = 총지출 / 경과 일수
  * - 지출 0원 카테고리 제외, 금액 내림차순
  */
+export function filterMonthSpent(
+  display: DisplayExpense[],
+  month: Date,
+  today: Date = new Date(),
+): DisplayExpense[] {
+  const monthKey = formatMonthKey(month)
+  const todayKey = formatDateKey(today)
+  const isCurrent = isSameMonth(month, today)
+  const isFuture = isBefore(today, startOfMonth(month))
+  const cutoff = isCurrent
+    ? todayKey
+    : isFuture
+      ? ''
+      : formatDateKey(
+          new Date(month.getFullYear(), month.getMonth(), getDaysInMonth(month)),
+        )
+
+  return display.filter((e) => {
+    if (!e.date.startsWith(monthKey)) return false
+    if (e.isScheduled) return false
+    if (!cutoff) return false
+    return e.date <= cutoff
+  })
+}
+
+export type CategoryDetailGroup = {
+  categoryId: string
+  name: string
+  color: string
+  total: number
+  items: DisplayExpense[]
+}
+
+export function groupExpensesByCategory(
+  spent: DisplayExpense[],
+  categories: Category[],
+): CategoryDetailGroup[] {
+  const catMap = new Map(categories.map((c) => [c.id, c]))
+  const byCat = new Map<string, DisplayExpense[]>()
+  for (const e of spent) {
+    const list = byCat.get(e.categoryId) ?? []
+    list.push(e)
+    byCat.set(e.categoryId, list)
+  }
+
+  return [...byCat.entries()]
+    .map(([categoryId, items]) => {
+      const cat = catMap.get(categoryId)
+      return {
+        categoryId,
+        name: cat?.name ?? '미분류',
+        color: cat?.color ?? '#9CA1A9',
+        total: items.reduce((s, e) => s + e.amount, 0),
+        items: [...items].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)),
+      }
+    })
+    .filter((g) => g.total > 0)
+    .sort((a, b) => {
+      const aFixed = a.name === '고정지출'
+      const bFixed = b.name === '고정지출'
+      if (aFixed !== bFixed) return aFixed ? -1 : 1
+      return b.total - a.total
+    })
+}
+
 export function calcMonthStats(
   display: DisplayExpense[],
   categories: Category[],
@@ -50,24 +115,9 @@ export function calcMonthStats(
   paymentMethods: PaymentMethod[] = [],
 ): MonthStats {
   const monthKey = formatMonthKey(month)
-  const todayKey = formatDateKey(today)
   const isCurrent = isSameMonth(month, today)
   const isFuture = isBefore(today, startOfMonth(month))
-
-  const cutoff = isCurrent
-    ? todayKey
-    : isFuture
-      ? '' // 미래 월: 지출 없음
-      : formatDateKey(
-          new Date(month.getFullYear(), month.getMonth(), getDaysInMonth(month)),
-        )
-
-  const spent = display.filter((e) => {
-    if (!e.date.startsWith(monthKey)) return false
-    if (e.isScheduled) return false
-    if (!cutoff) return false
-    return e.date <= cutoff
-  })
+  const spent = filterMonthSpent(display, month, today)
 
   const total = spent.reduce((s, e) => s + e.amount, 0)
 
