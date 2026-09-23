@@ -12,6 +12,7 @@ export const CATEGORY_PALETTE = [
   '#F2CBD8',
   '#D2D8EA',
   '#E8A3A3',
+  '#C9CDD4',
 ] as const
 
 const now = () => new Date().toISOString()

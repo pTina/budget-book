@@ -6,23 +6,34 @@ import {
   isBefore,
   isSameMonth,
 } from 'date-fns'
-import type { Category, DisplayExpense } from '@/shared/types'
+import type { Category, DisplayExpense, PaymentMethod } from '@/shared/types'
 import { formatDateKey, formatMonthKey } from '@/shared/lib/format'
+import { CATEGORY_PALETTE } from '@/shared/storage/seed'
 
-export type CategoryStat = {
-  categoryId: string
+const UNSPECIFIED_COLOR = '#9CA1A9'
+
+export type StatSlice = {
   name: string
   color: string
   amount: number
   ratio: number
 }
 
+export type CategoryStat = StatSlice & {
+  categoryId: string
+}
+
+export type PaymentStat = StatSlice & {
+  paymentMethodId: string
+}
+
 export type MonthStats = {
   total: number
   dailyAverage: number
+  median: number
   elapsedDays: number
-  topCategory: CategoryStat | null
   ranks: CategoryStat[]
+  paymentRanks: PaymentStat[]
 }
 
 /**
@@ -36,6 +47,7 @@ export function calcMonthStats(
   categories: Category[],
   month: Date,
   today: Date = new Date(),
+  paymentMethods: PaymentMethod[] = [],
 ): MonthStats {
   const monthKey = formatMonthKey(month)
   const todayKey = formatDateKey(today)
@@ -70,6 +82,18 @@ export function calcMonthStats(
 
   const dailyAverage = elapsedDays > 0 ? total / elapsedDays : 0
 
+  const byDay = new Map<string, number>()
+  for (const e of spent) {
+    byDay.set(e.date, (byDay.get(e.date) ?? 0) + e.amount)
+  }
+  const dailyTotals: number[] = []
+  for (let day = 1; day <= elapsedDays; day += 1) {
+    const key = `${monthKey}-${String(day).padStart(2, '0')}`
+    const amount = byDay.get(key) ?? 0
+    if (amount > 0) dailyTotals.push(amount)
+  }
+  const median = medianOf(dailyTotals)
+
   const byCat = new Map<string, number>()
   for (const e of spent) {
     byCat.set(e.categoryId, (byCat.get(e.categoryId) ?? 0) + e.amount)
@@ -90,13 +114,48 @@ export function calcMonthStats(
     })
     .sort((a, b) => b.amount - a.amount)
 
+  const byPay = new Map<string, number>()
+  for (const e of spent) {
+    const key = e.paymentMethodId ?? ''
+    byPay.set(key, (byPay.get(key) ?? 0) + e.amount)
+  }
+
+  const methodMap = new Map(paymentMethods.map((m) => [m.id, m]))
+  const methodIndex = new Map(paymentMethods.map((m, i) => [m.id, i]))
+  const paymentRanks: PaymentStat[] = [...byPay.entries()]
+    .filter(([, amount]) => amount > 0)
+    .map(([paymentMethodId, amount]) => {
+      const method = methodMap.get(paymentMethodId)
+      const idx = methodIndex.get(paymentMethodId)
+      return {
+        paymentMethodId,
+        name: method?.name ?? '미지정',
+        color:
+          idx === undefined
+            ? UNSPECIFIED_COLOR
+            : CATEGORY_PALETTE[idx % CATEGORY_PALETTE.length],
+        amount,
+        ratio: total > 0 ? amount / total : 0,
+      }
+    })
+    .sort((a, b) => b.amount - a.amount)
+
   return {
     total,
     dailyAverage,
+    median,
     elapsedDays,
-    topCategory: ranks[0] ?? null,
     ranks,
+    paymentRanks,
   }
+}
+
+function medianOf(values: number[]): number {
+  if (values.length === 0) return 0
+  const sorted = [...values].sort((a, b) => a - b)
+  const mid = Math.floor(sorted.length / 2)
+  if (sorted.length % 2 === 0) return (sorted[mid - 1] + sorted[mid]) / 2
+  return sorted[mid]
 }
 
 export function daysElapsedInMonth(month: Date, today: Date = new Date()): number {

@@ -1,9 +1,10 @@
 import { useMemo } from 'react'
 import { useBudget } from '@/features/budget/hooks/useBudget'
 import { useCategories } from '@/features/category/hooks/useCategories'
+import { usePaymentMethods } from '@/features/payment/hooks/usePaymentMethods'
 import { useDisplayExpenses } from '@/features/expense/hooks/useExpenses'
 import { useUiStore } from '@/store/useUiStore'
-import { calcMonthStats } from '../utils/stats'
+import { calcMonthStats, type StatSlice } from '../utils/stats'
 import { calcBudgetSummary } from '@/features/budget/utils/budget'
 import { formatAmount, parseISO } from '@/shared/lib/format'
 import { useHorizontalSwipe } from '@/shared/lib/useHorizontalSwipe'
@@ -14,6 +15,7 @@ export function StatsView() {
   const shiftMonth = useUiStore((s) => s.shiftMonth)
   const { display } = useDisplayExpenses()
   const { data: categories = [] } = useCategories()
+  const { data: methods = [] } = usePaymentMethods()
   const { data: budget } = useBudget()
   const { monthSpent } = useDisplayExpenses()
   const swipe = useHorizontalSwipe({
@@ -23,8 +25,8 @@ export function StatsView() {
 
   const month = useMemo(() => parseISO(`${monthKey}-01`), [monthKey])
   const stats = useMemo(
-    () => calcMonthStats(display, categories, month),
-    [display, categories, month],
+    () => calcMonthStats(display, categories, month, new Date(), methods),
+    [display, categories, month, methods],
   )
 
   const budgetSummary =
@@ -50,17 +52,22 @@ export function StatsView() {
       {...swipe}
     >
       <div className="flex flex-col gap-6 md:flex-row md:items-center md:gap-10">
-        <DonutChart total={stats.total} ranks={stats.ranks} size={168} />
+        <DonutChart
+          total={stats.total}
+          ranks={stats.ranks}
+          size={168}
+          ariaLabel={`카테고리별 지출 도넛 차트, 총 ${stats.total.toLocaleString('ko-KR')}원`}
+        />
 
         <div className="flex-1 grid grid-cols-2 gap-4">
           <StatCard label={`${monthLabel} 총 지출`} value={formatAmount(stats.total)} />
           <StatCard
-            label="가장 많이 쓴 곳"
-            value={stats.topCategory?.name ?? '-'}
-          />
-          <StatCard
             label="하루 평균"
             value={formatAmount(Math.round(stats.dailyAverage))}
+          />
+          <StatCard
+            label="중앙값"
+            value={formatAmount(Math.round(stats.median))}
           />
           {budgetSummary ? (
             <StatCard
@@ -78,34 +85,65 @@ export function StatsView() {
       <hr className="my-6 border-0 border-t border-line" />
 
       <h2 className="m-0 mb-3 text-sm font-semibold text-ink">카테고리별 지출</h2>
-      <ul className="m-0 list-none space-y-3 p-0">
-        {stats.ranks.map((r) => (
-          <li key={r.categoryId} className="flex items-center gap-3">
-            <span
-              className="h-2.5 w-2.5 shrink-0 rounded-full"
-              style={{ backgroundColor: r.color }}
-              aria-hidden="true"
+      <RankList items={stats.ranks} itemKey={(r) => r.categoryId} />
+
+      {stats.paymentRanks.length > 0 ? (
+        <>
+          <hr className="my-6 border-0 border-t border-line" />
+          <h2 className="m-0 mb-4 text-sm font-semibold text-ink">결제수단별 지출</h2>
+          <div className="mb-4">
+            <DonutChart
+              total={stats.total}
+              ranks={stats.paymentRanks}
+              size={148}
+              ariaLabel={`결제수단별 지출 도넛 차트, 총 ${stats.total.toLocaleString('ko-KR')}원`}
             />
-            <span className="w-14 shrink-0 text-sm font-medium text-ink">{r.name}</span>
-            <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-line">
-              <div
-                className="h-full rounded-full"
-                style={{
-                  width: `${Math.round(r.ratio * 100)}%`,
-                  backgroundColor: r.color,
-                }}
-              />
-            </div>
-            <span className="w-24 shrink-0 text-right text-sm tabular-nums text-ink">
-              {formatAmount(r.amount)}
-            </span>
-            <span className="hidden w-10 shrink-0 text-right text-xs tabular-nums text-muted md:inline">
-              {Math.round(r.ratio * 100)}%
-            </span>
-          </li>
-        ))}
-      </ul>
+          </div>
+          <RankList
+            items={stats.paymentRanks}
+            itemKey={(r) => r.paymentMethodId || 'unspecified'}
+          />
+        </>
+      ) : null}
     </div>
+  )
+}
+
+function RankList<T extends StatSlice>({
+  items,
+  itemKey,
+}: {
+  items: T[]
+  itemKey: (item: T) => string
+}) {
+  return (
+    <ul className="m-0 list-none space-y-3 p-0">
+      {items.map((r) => (
+        <li key={itemKey(r)} className="flex items-center gap-3">
+          <span
+            className="h-2.5 w-2.5 shrink-0 rounded-full"
+            style={{ backgroundColor: r.color }}
+            aria-hidden="true"
+          />
+          <span className="w-16 shrink-0 truncate text-sm font-medium text-ink">{r.name}</span>
+          <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-line">
+            <div
+              className="h-full rounded-full"
+              style={{
+                width: `${Math.round(r.ratio * 100)}%`,
+                backgroundColor: r.color,
+              }}
+            />
+          </div>
+          <span className="w-24 shrink-0 text-right text-sm tabular-nums text-ink">
+            {formatAmount(r.amount)}
+          </span>
+          <span className="hidden w-10 shrink-0 text-right text-xs tabular-nums text-muted md:inline">
+            {Math.round(r.ratio * 100)}%
+          </span>
+        </li>
+      ))}
+    </ul>
   )
 }
 

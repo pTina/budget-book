@@ -61,6 +61,7 @@ export function SettingsModal() {
   const [newMethod, setNewMethod] = useState('')
   const [editingCat, setEditingCat] = useState<string | null>(null)
   const [editingCatName, setEditingCatName] = useState('')
+  const [editingCatColor, setEditingCatColor] = useState<string>(CATEGORY_PALETTE[0])
   const [editingMethod, setEditingMethod] = useState<string | null>(null)
   const [editingMethodName, setEditingMethodName] = useState('')
 
@@ -175,59 +176,82 @@ export function SettingsModal() {
             {categories.map((c) => (
               <li
                 key={c.id}
-                className="flex items-center gap-3 rounded-xl border border-line px-3 py-2.5"
+                className="flex flex-col gap-2 rounded-xl border border-line px-3 py-2.5"
               >
-                <span
-                  className="h-3 w-3 rounded-full"
-                  style={{ backgroundColor: c.color }}
-                  aria-hidden="true"
-                />
-                {editingCat === c.id ? (
-                  <input
-                    autoFocus
-                    value={editingCatName}
-                    onChange={(e) => setEditingCatName(e.target.value)}
-                    className="h-8 flex-1 rounded-lg border border-line-strong px-2 text-sm"
+                <div className="flex items-center gap-3">
+                  <span
+                    className="h-3 w-3 shrink-0 rounded-full"
+                    style={{
+                      backgroundColor: editingCat === c.id ? editingCatColor : c.color,
+                    }}
+                    aria-hidden="true"
                   />
-                ) : (
-                  <span className="flex-1 text-sm font-medium">{c.name}</span>
-                )}
-                {!c.isUncategorized ? (
-                  <span className="flex gap-1">
-                    {editingCat === c.id ? (
+                  {editingCat === c.id ? (
+                    <input
+                      autoFocus
+                      value={editingCatName}
+                      onChange={(e) => setEditingCatName(e.target.value)}
+                      className="h-8 flex-1 rounded-lg border border-line-strong px-2 text-sm"
+                    />
+                  ) : (
+                    <span className="flex-1 text-sm font-medium">{c.name}</span>
+                  )}
+                  {!c.isUncategorized ? (
+                    <span className="flex gap-1">
+                      {editingCat === c.id ? (
+                        <button
+                          type="button"
+                          className="text-xs font-medium text-ink"
+                          onClick={async () => {
+                            await categoryMut.update.mutateAsync({
+                              id: c.id,
+                              name: editingCatName.trim() || c.name,
+                              color: editingCatColor,
+                            })
+                            setEditingCat(null)
+                          }}
+                        >
+                          완료
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="text-xs text-muted"
+                          onClick={() => {
+                            setEditingCat(c.id)
+                            setEditingCatName(c.name)
+                            setEditingCatColor(c.color)
+                          }}
+                        >
+                          수정
+                        </button>
+                      )}
                       <button
                         type="button"
-                        className="text-xs font-medium text-ink"
-                        onClick={async () => {
-                          await categoryMut.update.mutateAsync({
-                            id: c.id,
-                            name: editingCatName.trim() || c.name,
-                          })
-                          setEditingCat(null)
-                        }}
+                        className="text-xs text-danger"
+                        onClick={() => void deleteCategory(c.id, c.name)}
                       >
-                        완료
+                        삭제
                       </button>
-                    ) : (
+                    </span>
+                  ) : null}
+                </div>
+                {editingCat === c.id && !c.isUncategorized ? (
+                  <div className="flex flex-wrap gap-2 pl-6">
+                    {CATEGORY_PALETTE.map((color) => (
                       <button
+                        key={color}
                         type="button"
-                        className="text-xs text-muted"
-                        onClick={() => {
-                          setEditingCat(c.id)
-                          setEditingCatName(c.name)
-                        }}
-                      >
-                        수정
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className="text-xs text-danger"
-                      onClick={() => void deleteCategory(c.id, c.name)}
-                    >
-                      삭제
-                    </button>
-                  </span>
+                        aria-label={`색상 ${color}`}
+                        aria-pressed={editingCatColor === color}
+                        className={`h-7 w-7 rounded-full ${
+                          editingCatColor === color ? 'ring-2 ring-offset-2 ring-ink' : ''
+                        }`}
+                        style={{ backgroundColor: color }}
+                        onClick={() => setEditingCatColor(color)}
+                      />
+                    ))}
+                  </div>
                 ) : null}
               </li>
             ))}

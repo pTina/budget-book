@@ -1,12 +1,13 @@
-import type { CategoryStat } from '../utils/stats'
+import type { StatSlice } from '../utils/stats'
 
 type Props = {
   total: number
-  ranks: CategoryStat[]
+  ranks: StatSlice[]
   size?: number
+  ariaLabel?: string
 }
 
-export function DonutChart({ total, ranks, size = 160 }: Props) {
+export function DonutChart({ total, ranks, size = 160, ariaLabel }: Props) {
   if (total <= 0 || ranks.length === 0) {
     return (
       <div
@@ -26,13 +27,14 @@ export function DonutChart({ total, ranks, size = 160 }: Props) {
   })
 
   const gradient = `conic-gradient(${segments.join(', ')})`
+  const totalLabel = total.toLocaleString('ko-KR')
 
   return (
     <div
       className="relative mx-auto"
       style={{ width: size, height: size }}
       role="img"
-      aria-label={`카테고리별 지출 도넛 차트, 총 ${total.toLocaleString('ko-KR')}원`}
+      aria-label={ariaLabel ?? `지출 도넛 차트, 총 ${totalLabel}원`}
     >
       <div
         className="absolute inset-0 rounded-full"
