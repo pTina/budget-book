@@ -30,6 +30,7 @@ type FormState = {
   dayOfMonth: string
   endDate: string
   memo: string
+  excluded: boolean
 }
 
 type Errors = Partial<Record<keyof FormState, string>>
@@ -45,6 +46,7 @@ function emptyForm(date: string, categoryId: string, recurringOn: boolean): Form
     dayOfMonth: String(Number(date.slice(8, 10))),
     endDate: '',
     memo: '',
+    excluded: false,
   }
 }
 
@@ -75,7 +77,7 @@ export function ExpenseFormModal() {
     return display.find((e) => e.id === formId) ?? null
   }, [formId, display])
 
-  const isEdit = Boolean(target)
+  const isEdit = Boolean(formId)
   const [form, setForm] = useState<FormState>(() =>
     emptyForm(selectedDate, defaultCat, recurringOn),
   )
@@ -87,7 +89,11 @@ export function ExpenseFormModal() {
 
   useEffect(() => {
     if (!open) return
+    if (formId && !target) return
     if (target) {
+      const sourceRecurring = target.recurringId
+        ? recurrings.find((r) => r.id === target.recurringId)
+        : undefined
       setForm({
         amount: String(target.amount),
         title: target.title,
@@ -95,9 +101,12 @@ export function ExpenseFormModal() {
         categoryId: target.categoryId,
         paymentMethodId: target.paymentMethodId ?? '',
         recurring: Boolean(target.recurringId),
-        dayOfMonth: String(Number(target.date.slice(8, 10))),
-        endDate: '',
+        dayOfMonth: String(
+          sourceRecurring?.dayOfMonth ?? Number(target.date.slice(8, 10)),
+        ),
+        endDate: sourceRecurring?.endDate ?? '',
         memo: target.memo ?? '',
+        excluded: Boolean(target.excluded),
       })
     } else {
       setForm(emptyForm(selectedDate, defaultCat, recurringOn))
@@ -105,7 +114,7 @@ export function ExpenseFormModal() {
     setErrors({})
     setAddingCategory(false)
     setAddingMethod(false)
-  }, [open, target, selectedDate, defaultCat, recurringOn])
+  }, [open, formId, target, selectedDate, defaultCat, recurringOn, recurrings])
 
   const setField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -122,7 +131,7 @@ export function ExpenseFormModal() {
     if (methods.length > 0 && !form.paymentMethodId) {
       next.paymentMethodId = '결제수단을 선택하세요'
     }
-    if (form.recurring && !isEdit) {
+    if (form.recurring) {
       const day = Number(form.dayOfMonth)
       if (!day || day < 1 || day > 31) next.dayOfMonth = '결제일을 1–31로 입력하세요'
     }
@@ -145,6 +154,7 @@ export function ExpenseFormModal() {
         startDate: form.date,
         endDate: form.endDate || null,
         memo: form.memo.trim() || undefined,
+        excluded: form.excluded || undefined,
       })
     } else {
       await expenseMut.create.mutateAsync({
@@ -154,6 +164,7 @@ export function ExpenseFormModal() {
         categoryId: form.categoryId,
         paymentMethodId: form.paymentMethodId || null,
         memo: form.memo.trim() || undefined,
+        excluded: form.excluded || undefined,
       })
     }
     closeExpenseForm()
@@ -169,6 +180,7 @@ export function ExpenseFormModal() {
       categoryId: form.categoryId,
       paymentMethodId: form.paymentMethodId || null,
       memo: form.memo.trim() || undefined,
+      excluded: form.excluded,
     }
 
     if (target.recurringId) {
@@ -194,6 +206,7 @@ export function ExpenseFormModal() {
           categoryId: patch.categoryId,
           paymentMethodId: patch.paymentMethodId,
           memo: patch.memo,
+          excluded: patch.excluded,
           dayOfMonth: Number(target.date.slice(8, 10)),
         })
 
@@ -423,29 +436,14 @@ export function ExpenseFormModal() {
           ) : null}
         </fieldset>
 
-        {!isEdit ? (
+        <div className="flex flex-col gap-3">
           <div>
-            <div className="flex items-center justify-between">
-              <label htmlFor="recurring-toggle" className="text-sm font-medium text-ink">
-                반복 지출
-              </label>
-              <button
-                id="recurring-toggle"
-                type="button"
-                role="switch"
-                aria-checked={form.recurring}
-                className={`relative h-6 w-11 rounded-full transition-colors ${
-                  form.recurring ? 'bg-ink' : 'bg-line-strong'
-                }`}
-                onClick={() => setField('recurring', !form.recurring)}
-              >
-                <span
-                  className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
-                    form.recurring ? 'translate-x-5' : ''
-                  }`}
-                />
-              </button>
-            </div>
+            <ToggleRow
+              id="recurring-toggle"
+              label="반복 지출"
+              checked={form.recurring}
+              onChange={(next) => setField('recurring', next)}
+            />
             {form.recurring ? (
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <Field label="결제일" error={errors.dayOfMonth}>
@@ -468,7 +466,13 @@ export function ExpenseFormModal() {
               </div>
             ) : null}
           </div>
-        ) : null}
+          <ToggleRow
+            id="excluded-toggle"
+            label="지출에서 제외"
+            checked={form.excluded}
+            onChange={(next) => setField('excluded', next)}
+          />
+        </div>
 
         <Field label="메모">
           <textarea
@@ -494,6 +498,42 @@ export function ExpenseFormModal() {
         .field-input:focus-visible { box-shadow: var(--focus-ring); }
       `}</style>
     </Modal>
+  )
+}
+
+function ToggleRow({
+  id,
+  label,
+  checked,
+  onChange,
+}: {
+  id: string
+  label: string
+  checked: boolean
+  onChange: (next: boolean) => void
+}) {
+  return (
+    <div className="flex items-center justify-between">
+      <label htmlFor={id} className="text-sm font-medium text-ink">
+        {label}
+      </label>
+      <button
+        id={id}
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        className={`relative h-6 w-11 rounded-full transition-colors ${
+          checked ? 'bg-ink' : 'bg-line-strong'
+        }`}
+        onClick={() => onChange(!checked)}
+      >
+        <span
+          className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
+            checked ? 'translate-x-5' : ''
+          }`}
+        />
+      </button>
+    </div>
   )
 }
 

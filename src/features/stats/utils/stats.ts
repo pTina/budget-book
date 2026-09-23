@@ -62,6 +62,32 @@ export function filterMonthSpent(
   return display.filter((e) => {
     if (!e.date.startsWith(monthKey)) return false
     if (e.isScheduled) return false
+    if (e.excluded) return false
+    if (!cutoff) return false
+    return e.date <= cutoff
+  })
+}
+
+export function filterMonthEntries(
+  display: DisplayExpense[],
+  month: Date,
+  today: Date = new Date(),
+): DisplayExpense[] {
+  const monthKey = formatMonthKey(month)
+  const todayKey = formatDateKey(today)
+  const isCurrent = isSameMonth(month, today)
+  const isFuture = isBefore(today, startOfMonth(month))
+  const cutoff = isCurrent
+    ? todayKey
+    : isFuture
+      ? ''
+      : formatDateKey(
+          new Date(month.getFullYear(), month.getMonth(), getDaysInMonth(month)),
+        )
+
+  return display.filter((e) => {
+    if (!e.date.startsWith(monthKey)) return false
+    if (e.isScheduled) return false
     if (!cutoff) return false
     return e.date <= cutoff
   })
@@ -105,6 +131,27 @@ export function groupExpensesByCategory(
       if (aFixed !== bFixed) return aFixed ? -1 : 1
       return b.total - a.total
     })
+}
+
+export const EXCLUDED_GROUP_ID = 'excluded'
+
+export function groupMonthDetails(
+  entries: DisplayExpense[],
+  categories: Category[],
+): CategoryDetailGroup[] {
+  const excludedItems = entries.filter((e) => e.excluded)
+  const spent = entries.filter((e) => !e.excluded)
+  const groups = groupExpensesByCategory(spent, categories)
+  if (excludedItems.length === 0) return groups
+
+  const excludedGroup: CategoryDetailGroup = {
+    categoryId: EXCLUDED_GROUP_ID,
+    name: '지출 제외',
+    color: '#9CA1A9',
+    total: excludedItems.reduce((s, e) => s + e.amount, 0),
+    items: [...excludedItems].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)),
+  }
+  return [excludedGroup, ...groups]
 }
 
 export function calcMonthStats(

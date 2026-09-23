@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { calcMonthStats, filterMonthSpent, groupExpensesByCategory } from './stats'
+import {
+  calcMonthStats,
+  filterMonthSpent,
+  groupExpensesByCategory,
+  groupMonthDetails,
+} from './stats'
 import type { Category, DisplayExpense, PaymentMethod } from '@/shared/types'
 import { CATEGORY_PALETTE } from '@/shared/storage/seed'
 
@@ -156,6 +161,28 @@ describe('filterMonthSpent', () => {
     )
     expect(spent.map((e) => e.id)).toEqual(['1', '2'])
   })
+
+  it('지출 제외 항목은 합계에서 뺀다', () => {
+    const spent = filterMonthSpent(
+      [
+        ...expenses,
+        {
+          id: '4',
+          amount: 80_000,
+          title: '이체',
+          date: '2026-09-10',
+          categoryId: 'cat-food',
+          paymentMethodId: null,
+          isScheduled: false,
+          isVirtual: false,
+          excluded: true,
+        },
+      ],
+      new Date(2026, 8, 1),
+      new Date(2026, 8, 15),
+    )
+    expect(spent.map((e) => e.id)).toEqual(['1', '2'])
+  })
 })
 
 describe('groupExpensesByCategory', () => {
@@ -247,5 +274,39 @@ describe('groupExpensesByCategory', () => {
       ],
     )
     expect(groups.map((g) => g.name)).toEqual(['고정지출', '식비'])
+  })
+})
+
+describe('groupMonthDetails', () => {
+  it('지출 제외 그룹을 맨 앞에 둔다', () => {
+    const groups = groupMonthDetails(
+      [
+        {
+          id: 'a',
+          amount: 50_000,
+          title: '점심',
+          date: '2026-09-12',
+          categoryId: 'cat-food',
+          paymentMethodId: null,
+          isScheduled: false,
+          isVirtual: false,
+        },
+        {
+          id: 'b',
+          amount: 10_000,
+          title: '이체',
+          date: '2026-09-11',
+          categoryId: 'cat-food',
+          paymentMethodId: null,
+          isScheduled: false,
+          isVirtual: false,
+          excluded: true,
+        },
+      ],
+      categories,
+    )
+    expect(groups.map((g) => g.name)).toEqual(['지출 제외', '식비'])
+    expect(groups[0].items.map((e) => e.id)).toEqual(['b'])
+    expect(groups[1].total).toBe(50_000)
   })
 })

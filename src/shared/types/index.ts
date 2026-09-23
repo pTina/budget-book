@@ -27,6 +27,8 @@ export type Expense = {
   isException?: boolean
   /** 삭제된 반복 회차(이번만) 표시용 — 실제 목록에서 제외 */
   isSkipped?: boolean
+  /** 통계·예산 합계에서 빼는 지출 */
+  excluded?: boolean
   createdAt: string
   updatedAt: string
 }
@@ -45,6 +47,7 @@ export type Recurring = {
   startDate: string
   endDate?: string | null
   memo?: string
+  excluded?: boolean
   createdAt: string
   updatedAt: string
 }
@@ -82,6 +85,7 @@ export type DisplayExpense = {
   /** 실제 Expense 레코드 여부 (없으면 가상 회차) */
   isVirtual: boolean
   sourceExpenseId?: string
+  excluded?: boolean
 }
 
 export type ViewMode = 'calendar' | 'stats' | 'details'

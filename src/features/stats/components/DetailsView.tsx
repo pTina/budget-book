@@ -5,7 +5,7 @@ import { useDisplayExpenses } from '@/features/expense/hooks/useExpenses'
 import { formatAmount, parseISO } from '@/shared/lib/format'
 import { useHorizontalSwipe } from '@/shared/lib/useHorizontalSwipe'
 import { useUiStore } from '@/store/useUiStore'
-import { filterMonthSpent, groupExpensesByCategory } from '../utils/stats'
+import { filterMonthEntries, groupMonthDetails } from '../utils/stats'
 
 export function DetailsView() {
   const monthKey = useUiStore((s) => s.monthKey)
@@ -20,8 +20,8 @@ export function DetailsView() {
 
   const month = useMemo(() => parseISO(`${monthKey}-01`), [monthKey])
   const groups = useMemo(() => {
-    const spent = filterMonthSpent(display, month)
-    return groupExpensesByCategory(spent, categories)
+    const entries = filterMonthEntries(display, month)
+    return groupMonthDetails(entries, categories)
   }, [display, month, categories])
 
   if (groups.length === 0) {

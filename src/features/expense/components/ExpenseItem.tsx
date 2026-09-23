@@ -41,6 +41,11 @@ export function ExpenseItem({ expense, onClick }: Props) {
                   예정
                 </span>
               ) : null}
+              {expense.excluded ? (
+                <span className="rounded bg-canvas px-1.5 py-0.5 text-[10px] font-medium text-muted">
+                  제외
+                </span>
+              ) : null}
             </span>
             <span className="mt-0.5 block truncate text-xs text-faint">
               {cat?.name ?? '미분류'}

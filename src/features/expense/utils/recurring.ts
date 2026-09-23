@@ -110,6 +110,7 @@ export function mergeDisplayExpenses(
       isScheduled: e.date > todayKey,
       isVirtual: false,
       sourceExpenseId: e.id,
+      excluded: Boolean(e.excluded),
     })
   }
 
@@ -130,6 +131,7 @@ export function mergeDisplayExpenses(
         recurringId: r.id,
         isScheduled: date > todayKey,
         isVirtual: true,
+        excluded: Boolean(r.excluded),
       })
     }
   }
@@ -148,7 +150,9 @@ export function getDayExpenses(
 }
 
 export function sumDayAmount(display: DisplayExpense[], dateKey: string): number {
-  return getDayExpenses(display, dateKey).reduce((s, e) => s + e.amount, 0)
+  return getDayExpenses(display, dateKey)
+    .filter((e) => !e.excluded)
+    .reduce((s, e) => s + e.amount, 0)
 }
 
 export function sumMonthSpent(
@@ -158,14 +162,22 @@ export function sumMonthSpent(
 ): number {
   const todayKey = formatDateKey(today)
   return display
-    .filter((e) => e.date.startsWith(monthKey) && e.date <= todayKey && !e.isScheduled)
+    .filter(
+      (e) =>
+        e.date.startsWith(monthKey) &&
+        e.date <= todayKey &&
+        !e.isScheduled &&
+        !e.excluded,
+    )
     .reduce((s, e) => s + e.amount, 0)
 }
 
 /** '이번만' 수정: 가상 → 예외 Expense 생성, 실지출 → 업데이트 */
 export function buildThisOnlyUpdate(
   display: DisplayExpense,
-  patch: Partial<Pick<Expense, 'amount' | 'title' | 'categoryId' | 'paymentMethodId' | 'memo' | 'date'>>,
+  patch: Partial<
+    Pick<Expense, 'amount' | 'title' | 'categoryId' | 'paymentMethodId' | 'memo' | 'date' | 'excluded'>
+  >,
 ): { type: 'create' | 'update'; expense: Omit<Expense, 'id' | 'createdAt' | 'updatedAt'> & { id?: string } } {
   if (display.isVirtual || !display.sourceExpenseId) {
     return {
@@ -183,6 +195,7 @@ export function buildThisOnlyUpdate(
         recurringId: display.recurringId,
         isException: true,
         isSkipped: false,
+        excluded: patch.excluded ?? display.excluded,
       },
     }
   }
@@ -201,6 +214,7 @@ export function buildThisOnlyUpdate(
           : display.paymentMethodId,
       memo: patch.memo ?? display.memo,
       isException: true,
+      excluded: patch.excluded ?? display.excluded,
     },
   }
 }
@@ -244,7 +258,14 @@ export function splitRecurringFromDate(
   patch: Partial<
     Pick<
       Recurring,
-      'amount' | 'title' | 'categoryId' | 'paymentMethodId' | 'memo' | 'dayOfMonth' | 'endDate'
+      | 'amount'
+      | 'title'
+      | 'categoryId'
+      | 'paymentMethodId'
+      | 'memo'
+      | 'dayOfMonth'
+      | 'endDate'
+      | 'excluded'
     >
   >,
 ): { close: Recurring; next: Omit<Recurring, 'id' | 'createdAt' | 'updatedAt'> } {
@@ -276,6 +297,7 @@ export function splitRecurringFromDate(
         startDate: fromDate,
         endDate: patch.endDate !== undefined ? patch.endDate : recurring.endDate,
         memo: patch.memo ?? recurring.memo,
+        excluded: patch.excluded ?? recurring.excluded,
       },
     }
   }
@@ -295,6 +317,7 @@ export function splitRecurringFromDate(
       startDate: fromDate,
       endDate: patch.endDate !== undefined ? patch.endDate : recurring.endDate,
       memo: patch.memo ?? recurring.memo,
+      excluded: patch.excluded ?? recurring.excluded,
     },
   }
 }
