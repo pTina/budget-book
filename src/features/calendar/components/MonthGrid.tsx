@@ -149,7 +149,7 @@ export function MonthGrid() {
                         onClick={(e) => onBarClick(e, item, dateKey)}
                         className={`flex h-[18px] w-full shrink-0 items-center rounded-full px-1.5 text-left outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-accent ${
                           hideOnMobile ? 'hidden md:flex' : ''
-                        } ${item.isScheduled ? 'opacity-70' : ''}`}
+                        }`}
                         style={{ backgroundColor: color }}
                       >
                         <span className="truncate text-[10px] font-medium leading-none text-ink/80">
