@@ -68,29 +68,13 @@ export function filterMonthSpent(
   })
 }
 
+/** 선택 월 세부내역용 — 캘린더와 같이 해당 월 전체(예정·제외 포함) */
 export function filterMonthEntries(
   display: DisplayExpense[],
   month: Date,
-  today: Date = new Date(),
 ): DisplayExpense[] {
   const monthKey = formatMonthKey(month)
-  const todayKey = formatDateKey(today)
-  const isCurrent = isSameMonth(month, today)
-  const isFuture = isBefore(today, startOfMonth(month))
-  const cutoff = isCurrent
-    ? todayKey
-    : isFuture
-      ? ''
-      : formatDateKey(
-          new Date(month.getFullYear(), month.getMonth(), getDaysInMonth(month)),
-        )
-
-  return display.filter((e) => {
-    if (!e.date.startsWith(monthKey)) return false
-    if (e.isScheduled) return false
-    if (!cutoff) return false
-    return e.date <= cutoff
-  })
+  return display.filter((e) => e.date.startsWith(monthKey))
 }
 
 export type CategoryDetailGroup = {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   calcMonthStats,
+  filterMonthEntries,
   filterMonthSpent,
   groupExpensesByCategory,
   groupMonthDetails,
@@ -149,6 +150,40 @@ describe('calcMonthStats', () => {
     )
     expect(stats.total).toBe(100_000)
     expect(stats.elapsedDays).toBe(31)
+  })
+})
+
+describe('filterMonthEntries', () => {
+  it('선택 월 전체(예정·지출 제외 포함)를 남긴다', () => {
+    const entries = filterMonthEntries(
+      [
+        ...expenses,
+        {
+          id: '4',
+          amount: 200_000,
+          title: '자동이체',
+          date: '2026-09-28',
+          categoryId: 'cat-food',
+          paymentMethodId: null,
+          isScheduled: true,
+          isVirtual: true,
+          excluded: true,
+        },
+        {
+          id: '5',
+          amount: 1_000,
+          title: '다른달',
+          date: '2026-08-28',
+          categoryId: 'cat-food',
+          paymentMethodId: null,
+          isScheduled: false,
+          isVirtual: false,
+          excluded: true,
+        },
+      ],
+      new Date(2026, 8, 1),
+    )
+    expect(entries.map((e) => e.id).sort()).toEqual(['1', '2', '3', '4'])
   })
 })
 
@@ -308,5 +343,37 @@ describe('groupMonthDetails', () => {
     expect(groups.map((g) => g.name)).toEqual(['지출 제외', '식비'])
     expect(groups[0].items.map((e) => e.id)).toEqual(['b'])
     expect(groups[1].total).toBe(50_000)
+  })
+
+  it('예정인 지출 제외 항목도 지출 제외 그룹에 넣는다', () => {
+    const groups = groupMonthDetails(
+      [
+        {
+          id: 'a',
+          amount: 50_000,
+          title: '점심',
+          date: '2026-09-12',
+          categoryId: 'cat-food',
+          paymentMethodId: null,
+          isScheduled: false,
+          isVirtual: false,
+        },
+        {
+          id: 'c',
+          amount: 200_000,
+          title: '자동이체',
+          date: '2026-09-28',
+          categoryId: 'cat-food',
+          paymentMethodId: null,
+          isScheduled: true,
+          isVirtual: true,
+          excluded: true,
+        },
+      ],
+      categories,
+    )
+    expect(groups.map((g) => g.name)).toEqual(['지출 제외', '식비'])
+    expect(groups[0].items.map((e) => e.id)).toEqual(['c'])
+    expect(groups[0].total).toBe(200_000)
   })
 })
