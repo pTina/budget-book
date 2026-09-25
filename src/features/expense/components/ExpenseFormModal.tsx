@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { parseISO } from 'date-fns'
 import { Modal } from '@/shared/ui/Modal'
 import { Chip } from '@/shared/ui/Chip'
 import { useCategories, useCategoryMutations } from '@/features/category/hooks/useCategories'
@@ -16,7 +17,11 @@ import {
 import { useDeleteExpense } from '../hooks/useDeleteExpense'
 import { useUiStore } from '@/store/useUiStore'
 import { formatAmount, parseAmountInput } from '@/shared/lib/format'
-import { buildThisOnlyUpdate, splitRecurringFromDate } from '../utils/recurring'
+import {
+  buildThisOnlyDelete,
+  buildThisOnlyUpdate,
+  splitRecurringFromDate,
+} from '../utils/recurring'
 import { CATEGORY_PALETTE } from '@/shared/storage'
 import type { DisplayExpense } from '@/shared/types'
 
@@ -183,6 +188,59 @@ export function ExpenseFormModal() {
       excluded: form.excluded,
     }
 
+    const oneOffExpense = {
+      title: patch.title,
+      amount: patch.amount,
+      date: patch.date,
+      categoryId: patch.categoryId,
+      paymentMethodId: patch.paymentMethodId,
+      memo: patch.memo,
+      excluded: patch.excluded || undefined,
+    }
+
+    // 반복 → 일반 지출 전환
+    if (target.recurringId && !form.recurring) {
+      const scope = await askScope()
+      if (!scope) return
+
+      if (scope === 'this') {
+        const skip = buildThisOnlyDelete(target)
+        if (skip.type === 'skip' && skip.expense) {
+          await expenseMut.create.mutateAsync(skip.expense)
+        } else if (skip.type === 'skip' && skip.id) {
+          await expenseMut.update.mutateAsync({
+            id: skip.id,
+            isSkipped: true,
+            isException: true,
+          })
+        } else if (skip.type === 'delete' && skip.id) {
+          await expenseMut.remove.mutateAsync(skip.id)
+        }
+        await expenseMut.create.mutateAsync(oneOffExpense)
+      } else {
+        const recurring = recurrings.find((r) => r.id === target.recurringId)
+        if (!recurring) return
+        const from = parseISO(target.date)
+        const dayBefore = new Date(from.getFullYear(), from.getMonth(), from.getDate() - 1)
+        const endDate = `${dayBefore.getFullYear()}-${String(dayBefore.getMonth() + 1).padStart(2, '0')}-${String(dayBefore.getDate()).padStart(2, '0')}`
+
+        if (recurring.startDate >= target.date) {
+          await recurringMut.remove.mutateAsync(recurring.id)
+        } else {
+          await recurringMut.update.mutateAsync({ id: recurring.id, endDate })
+        }
+
+        for (const e of expenses) {
+          if (e.recurringId === recurring.id && e.date >= target.date) {
+            await expenseMut.remove.mutateAsync(e.id)
+          }
+        }
+        await expenseMut.create.mutateAsync(oneOffExpense)
+      }
+      closeExpenseForm()
+      return
+    }
+
     if (target.recurringId) {
       const scope = await askScope()
       if (!scope) return
@@ -207,7 +265,8 @@ export function ExpenseFormModal() {
           paymentMethodId: patch.paymentMethodId,
           memo: patch.memo,
           excluded: patch.excluded,
-          dayOfMonth: Number(target.date.slice(8, 10)),
+          dayOfMonth: Number(form.dayOfMonth) || Number(target.date.slice(8, 10)),
+          endDate: form.endDate || null,
         })
 
         if (close.id === recurring.id && close.startDate === next.startDate) {
@@ -229,7 +288,24 @@ export function ExpenseFormModal() {
         }
       }
     } else if (target.sourceExpenseId) {
-      await expenseMut.update.mutateAsync({ id: target.sourceExpenseId, ...patch })
+      // 일반 지출 → 반복 지출로 전환
+      if (form.recurring) {
+        await recurringMut.create.mutateAsync({
+          title: patch.title,
+          amount: patch.amount,
+          categoryId: patch.categoryId,
+          paymentMethodId: patch.paymentMethodId,
+          frequency: 'monthly',
+          dayOfMonth: Number(form.dayOfMonth),
+          startDate: patch.date,
+          endDate: form.endDate || null,
+          memo: patch.memo,
+          excluded: patch.excluded || undefined,
+        })
+        await expenseMut.remove.mutateAsync(target.sourceExpenseId)
+      } else {
+        await expenseMut.update.mutateAsync({ id: target.sourceExpenseId, ...patch })
+      }
     }
     closeExpenseForm()
   }
