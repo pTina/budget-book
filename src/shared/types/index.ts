@@ -90,4 +90,6 @@ export type DisplayExpense = {
 
 export type ViewMode = 'calendar' | 'stats' | 'details'
 
+export type DetailsGroupBy = 'category' | 'payment'
+
 export type RecurringEditScope = 'this' | 'following'

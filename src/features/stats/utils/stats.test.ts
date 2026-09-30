@@ -4,6 +4,7 @@ import {
   filterMonthEntries,
   filterMonthSpent,
   groupExpensesByCategory,
+  groupExpensesByPayment,
   groupMonthDetails,
 } from './stats'
 import type { Category, DisplayExpense, PaymentMethod } from '@/shared/types'
@@ -68,6 +69,7 @@ describe('calcMonthStats', () => {
       new Date(2026, 8, 15),
     )
     expect(stats.total).toBe(470_000)
+    expect(stats.excludedTotal).toBe(0)
     expect(stats.elapsedDays).toBe(15)
     expect(stats.dailyAverage).toBeCloseTo(470_000 / 15)
     expect(stats.median).toBe(235_000)
@@ -75,6 +77,41 @@ describe('calcMonthStats', () => {
     expect(stats.ranks[0].ratio).toBeCloseTo(320_000 / 470_000)
     expect(stats.paymentRanks).toHaveLength(1)
     expect(stats.paymentRanks[0].name).toBe('미지정')
+  })
+
+  it('지출 제외 합계는 따로 모은다', () => {
+    const stats = calcMonthStats(
+      [
+        ...expenses,
+        {
+          id: '4',
+          amount: 80_000,
+          title: '이체',
+          date: '2026-09-10',
+          categoryId: 'cat-food',
+          paymentMethodId: null,
+          isScheduled: false,
+          isVirtual: false,
+          excluded: true,
+        },
+        {
+          id: '5',
+          amount: 20_000,
+          title: '예정제외',
+          date: '2026-09-25',
+          categoryId: 'cat-food',
+          paymentMethodId: null,
+          isScheduled: true,
+          isVirtual: true,
+          excluded: true,
+        },
+      ],
+      categories,
+      new Date(2026, 8, 1),
+      new Date(2026, 8, 15),
+    )
+    expect(stats.total).toBe(470_000)
+    expect(stats.excludedTotal).toBe(80_000)
   })
 
   it('결제수단별로 합산하고 등록 순 팔레트 색을 쓴다', () => {
@@ -312,33 +349,86 @@ describe('groupExpensesByCategory', () => {
   })
 })
 
-describe('groupMonthDetails', () => {
-  it('지출 제외 그룹을 맨 앞에 둔다', () => {
-    const groups = groupMonthDetails(
+describe('groupExpensesByPayment', () => {
+  it('결제수단별 합계 내림차순, 없음은 미지정으로 묶는다', () => {
+    const methods: PaymentMethod[] = [
+      { id: 'pm-cash', name: '현금', createdAt: '', updatedAt: '' },
+      { id: 'pm-card', name: '카드', createdAt: '', updatedAt: '' },
+    ]
+    const groups = groupExpensesByPayment(
       [
         {
           id: 'a',
-          amount: 50_000,
-          title: '점심',
-          date: '2026-09-12',
+          amount: 10_000,
+          title: '현금1',
+          date: '2026-09-10',
           categoryId: 'cat-food',
-          paymentMethodId: null,
+          paymentMethodId: 'pm-cash',
           isScheduled: false,
           isVirtual: false,
         },
         {
           id: 'b',
-          amount: 10_000,
-          title: '이체',
+          amount: 20_000,
+          title: '현금2',
+          date: '2026-09-12',
+          categoryId: 'cat-food',
+          paymentMethodId: 'pm-cash',
+          isScheduled: false,
+          isVirtual: false,
+        },
+        {
+          id: 'c',
+          amount: 5_000,
+          title: '없음',
           date: '2026-09-11',
           categoryId: 'cat-food',
           paymentMethodId: null,
           isScheduled: false,
           isVirtual: false,
-          excluded: true,
         },
       ],
-      categories,
+      methods,
+    )
+    expect(groups.map((g) => g.name)).toEqual(['현금', '미지정'])
+    expect(groups[0].total).toBe(30_000)
+    expect(groups[0].items.map((e) => e.id)).toEqual(['b', 'a'])
+    expect(groups[0].color).toBe(CATEGORY_PALETTE[0])
+    expect(groups[1].name).toBe('미지정')
+  })
+})
+
+describe('groupMonthDetails', () => {
+  it('지출 제외 그룹을 맨 앞에 둔다', () => {
+    const entries = [
+      {
+        id: 'a',
+        amount: 50_000,
+        title: '점심',
+        date: '2026-09-12',
+        categoryId: 'cat-food',
+        paymentMethodId: null,
+        isScheduled: false,
+        isVirtual: false,
+      },
+      {
+        id: 'b',
+        amount: 10_000,
+        title: '이체',
+        date: '2026-09-11',
+        categoryId: 'cat-food',
+        paymentMethodId: null,
+        isScheduled: false,
+        isVirtual: false,
+        excluded: true,
+      },
+    ] satisfies DisplayExpense[]
+    const groups = groupMonthDetails(
+      entries,
+      groupExpensesByCategory(
+        entries.filter((e) => !e.excluded),
+        categories,
+      ),
     )
     expect(groups.map((g) => g.name)).toEqual(['지출 제외', '식비'])
     expect(groups[0].items.map((e) => e.id)).toEqual(['b'])
@@ -346,31 +436,35 @@ describe('groupMonthDetails', () => {
   })
 
   it('예정인 지출 제외 항목도 지출 제외 그룹에 넣는다', () => {
+    const entries = [
+      {
+        id: 'a',
+        amount: 50_000,
+        title: '점심',
+        date: '2026-09-12',
+        categoryId: 'cat-food',
+        paymentMethodId: null,
+        isScheduled: false,
+        isVirtual: false,
+      },
+      {
+        id: 'c',
+        amount: 200_000,
+        title: '자동이체',
+        date: '2026-09-28',
+        categoryId: 'cat-food',
+        paymentMethodId: null,
+        isScheduled: true,
+        isVirtual: true,
+        excluded: true,
+      },
+    ] satisfies DisplayExpense[]
     const groups = groupMonthDetails(
-      [
-        {
-          id: 'a',
-          amount: 50_000,
-          title: '점심',
-          date: '2026-09-12',
-          categoryId: 'cat-food',
-          paymentMethodId: null,
-          isScheduled: false,
-          isVirtual: false,
-        },
-        {
-          id: 'c',
-          amount: 200_000,
-          title: '자동이체',
-          date: '2026-09-28',
-          categoryId: 'cat-food',
-          paymentMethodId: null,
-          isScheduled: true,
-          isVirtual: true,
-          excluded: true,
-        },
-      ],
-      categories,
+      entries,
+      groupExpensesByCategory(
+        entries.filter((e) => !e.excluded),
+        categories,
+      ),
     )
     expect(groups.map((g) => g.name)).toEqual(['지출 제외', '식비'])
     expect(groups[0].items.map((e) => e.id)).toEqual(['c'])

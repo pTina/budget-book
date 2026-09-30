@@ -34,7 +34,7 @@ export function StatsView() {
 
   const monthLabel = `${Number(monthKey.slice(5, 7))}월`
 
-  if (stats.total === 0) {
+  if (stats.total === 0 && stats.excludedTotal === 0) {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
         <p className="m-0 text-center text-sm text-muted leading-relaxed">
@@ -61,6 +61,9 @@ export function StatsView() {
 
         <div className="flex-1 grid grid-cols-2 gap-4">
           <StatCard label={`${monthLabel} 총 지출`} value={formatAmount(stats.total)} />
+          {stats.excludedTotal > 0 ? (
+            <StatCard label="지출 제외" value={formatAmount(stats.excludedTotal)} />
+          ) : null}
           <StatCard
             label="하루 평균"
             value={formatAmount(Math.round(stats.dailyAverage))}

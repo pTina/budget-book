@@ -29,6 +29,7 @@ export type PaymentStat = StatSlice & {
 
 export type MonthStats = {
   total: number
+  excludedTotal: number
   dailyAverage: number
   median: number
   elapsedDays: number
@@ -42,27 +43,46 @@ export type MonthStats = {
  * - 하루 평균 = 총지출 / 경과 일수
  * - 지출 0원 카테고리 제외, 금액 내림차순
  */
+function monthSpentCutoff(month: Date, today: Date): string {
+  const todayKey = formatDateKey(today)
+  const isCurrent = isSameMonth(month, today)
+  const isFuture = isBefore(today, startOfMonth(month))
+  if (isCurrent) return todayKey
+  if (isFuture) return ''
+  return formatDateKey(
+    new Date(month.getFullYear(), month.getMonth(), getDaysInMonth(month)),
+  )
+}
+
 export function filterMonthSpent(
   display: DisplayExpense[],
   month: Date,
   today: Date = new Date(),
 ): DisplayExpense[] {
   const monthKey = formatMonthKey(month)
-  const todayKey = formatDateKey(today)
-  const isCurrent = isSameMonth(month, today)
-  const isFuture = isBefore(today, startOfMonth(month))
-  const cutoff = isCurrent
-    ? todayKey
-    : isFuture
-      ? ''
-      : formatDateKey(
-          new Date(month.getFullYear(), month.getMonth(), getDaysInMonth(month)),
-        )
+  const cutoff = monthSpentCutoff(month, today)
 
   return display.filter((e) => {
     if (!e.date.startsWith(monthKey)) return false
     if (e.isScheduled) return false
     if (e.excluded) return false
+    if (!cutoff) return false
+    return e.date <= cutoff
+  })
+}
+
+export function filterMonthExcluded(
+  display: DisplayExpense[],
+  month: Date,
+  today: Date = new Date(),
+): DisplayExpense[] {
+  const monthKey = formatMonthKey(month)
+  const cutoff = monthSpentCutoff(month, today)
+
+  return display.filter((e) => {
+    if (!e.date.startsWith(monthKey)) return false
+    if (e.isScheduled) return false
+    if (!e.excluded) return false
     if (!cutoff) return false
     return e.date <= cutoff
   })
@@ -77,18 +97,24 @@ export function filterMonthEntries(
   return display.filter((e) => e.date.startsWith(monthKey))
 }
 
-export type CategoryDetailGroup = {
-  categoryId: string
+export type DetailGroup = {
+  id: string
   name: string
   color: string
   total: number
   items: DisplayExpense[]
 }
 
+export type CategoryDetailGroup = DetailGroup
+
+function sortItemsByDateDesc(items: DisplayExpense[]): DisplayExpense[] {
+  return [...items].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+}
+
 export function groupExpensesByCategory(
   spent: DisplayExpense[],
   categories: Category[],
-): CategoryDetailGroup[] {
+): DetailGroup[] {
   const catMap = new Map(categories.map((c) => [c.id, c]))
   const byCat = new Map<string, DisplayExpense[]>()
   for (const e of spent) {
@@ -101,11 +127,11 @@ export function groupExpensesByCategory(
     .map(([categoryId, items]) => {
       const cat = catMap.get(categoryId)
       return {
-        categoryId,
+        id: categoryId,
         name: cat?.name ?? '미분류',
         color: cat?.color ?? '#9CA1A9',
         total: items.reduce((s, e) => s + e.amount, 0),
-        items: [...items].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)),
+        items: sortItemsByDateDesc(items),
       }
     })
     .filter((g) => g.total > 0)
@@ -117,23 +143,54 @@ export function groupExpensesByCategory(
     })
 }
 
+export function groupExpensesByPayment(
+  spent: DisplayExpense[],
+  paymentMethods: PaymentMethod[],
+): DetailGroup[] {
+  const methodMap = new Map(paymentMethods.map((m) => [m.id, m]))
+  const methodIndex = new Map(paymentMethods.map((m, i) => [m.id, i]))
+  const byPay = new Map<string, DisplayExpense[]>()
+  for (const e of spent) {
+    const key = e.paymentMethodId ?? ''
+    const list = byPay.get(key) ?? []
+    list.push(e)
+    byPay.set(key, list)
+  }
+
+  return [...byPay.entries()]
+    .map(([paymentMethodId, items]) => {
+      const method = methodMap.get(paymentMethodId)
+      const idx = methodIndex.get(paymentMethodId)
+      return {
+        id: paymentMethodId || 'unspecified',
+        name: method?.name ?? '미지정',
+        color:
+          idx === undefined
+            ? UNSPECIFIED_COLOR
+            : CATEGORY_PALETTE[idx % CATEGORY_PALETTE.length],
+        total: items.reduce((s, e) => s + e.amount, 0),
+        items: sortItemsByDateDesc(items),
+      }
+    })
+    .filter((g) => g.total > 0)
+    .sort((a, b) => b.total - a.total)
+}
+
 export const EXCLUDED_GROUP_ID = 'excluded'
 
 export function groupMonthDetails(
   entries: DisplayExpense[],
-  categories: Category[],
-): CategoryDetailGroup[] {
+  groups: DetailGroup[],
+): DetailGroup[] {
   const excludedItems = entries.filter((e) => e.excluded)
-  const spent = entries.filter((e) => !e.excluded)
-  const groups = groupExpensesByCategory(spent, categories)
   if (excludedItems.length === 0) return groups
 
-  const excludedGroup: CategoryDetailGroup = {
-    categoryId: EXCLUDED_GROUP_ID,
+  const excludedGroup: DetailGroup = {
+    id: EXCLUDED_GROUP_ID,
     name: '지출 제외',
     color: '#9CA1A9',
     total: excludedItems.reduce((s, e) => s + e.amount, 0),
-    items: [...excludedItems].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)),
+    items: sortItemsByDateDesc(excludedItems),
   }
   return [excludedGroup, ...groups]
 }
@@ -149,8 +206,10 @@ export function calcMonthStats(
   const isCurrent = isSameMonth(month, today)
   const isFuture = isBefore(today, startOfMonth(month))
   const spent = filterMonthSpent(display, month, today)
+  const excluded = filterMonthExcluded(display, month, today)
 
   const total = spent.reduce((s, e) => s + e.amount, 0)
+  const excludedTotal = excluded.reduce((s, e) => s + e.amount, 0)
 
   let elapsedDays: number
   if (isFuture) {
@@ -223,6 +282,7 @@ export function calcMonthStats(
 
   return {
     total,
+    excludedTotal,
     dailyAverage,
     median,
     elapsedDays,

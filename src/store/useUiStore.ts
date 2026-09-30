@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { formatDateKey, formatMonthKey } from '@/shared/lib/format'
-import type { RecurringEditScope, ViewMode } from '@/shared/types'
+import type { DetailsGroupBy, RecurringEditScope, ViewMode } from '@/shared/types'
 
 type SettingsTab = 'budget' | 'category' | 'payment' | 'recurring'
 
@@ -9,6 +9,7 @@ type UiState = {
   monthKey: string
   selectedDate: string
   viewMode: ViewMode
+  detailsGroupBy: DetailsGroupBy
 
   dayExpenseOpen: boolean
   expenseFormOpen: boolean
@@ -30,6 +31,7 @@ type UiState = {
   goToday: () => void
   shiftMonth: (delta: number) => void
   setViewMode: (mode: ViewMode) => void
+  setDetailsGroupBy: (mode: DetailsGroupBy) => void
 
   openDayExpense: (date?: string) => void
   closeDayExpense: () => void
@@ -56,6 +58,7 @@ export const useUiStore = create<UiState>()(
       monthKey: formatMonthKey(today),
       selectedDate: formatDateKey(today),
       viewMode: 'calendar',
+      detailsGroupBy: 'category',
 
       dayExpenseOpen: false,
       expenseFormOpen: false,
@@ -93,6 +96,7 @@ export const useUiStore = create<UiState>()(
         set({ monthKey: key, selectedDate: `${key}-${clamped}` })
       },
       setViewMode: (mode) => set({ viewMode: mode }),
+      setDetailsGroupBy: (mode) => set({ detailsGroupBy: mode }),
 
       openDayExpense: (date) =>
         set({
@@ -149,6 +153,7 @@ export const useUiStore = create<UiState>()(
         monthKey: s.monthKey,
         selectedDate: s.selectedDate,
         viewMode: s.viewMode,
+        detailsGroupBy: s.detailsGroupBy,
       }),
     },
   ),
