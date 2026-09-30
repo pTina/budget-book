@@ -3,6 +3,8 @@ import { getFirestoreDb } from '@/shared/lib/firebase'
 import { createId } from '@/shared/lib/id'
 import type {
   AppData,
+  AssetCategory,
+  AssetEntry,
   BudgetSettings,
   Category,
   Expense,
@@ -11,11 +13,15 @@ import type {
 } from '@/shared/types'
 import { createSeedData, UNCATEGORIZED_ID } from './seed'
 import type {
+  CreateAssetCategoryInput,
+  CreateAssetEntryInput,
   CreateCategoryInput,
   CreateExpenseInput,
   CreatePaymentMethodInput,
   CreateRecurringInput,
   DataAdapter,
+  UpdateAssetCategoryInput,
+  UpdateAssetEntryInput,
   UpdateCategoryInput,
   UpdateExpenseInput,
   UpdatePaymentMethodInput,
@@ -39,6 +45,8 @@ type Cache = {
   expenses: Expense[] | null
   recurrings: Recurring[] | null
   budget: BudgetSettings | null
+  assetCategories: AssetCategory[] | null
+  assetEntries: AssetEntry[] | null
   seeded: boolean
 }
 
@@ -48,6 +56,8 @@ const cache: Cache = {
   expenses: null,
   recurrings: null,
   budget: null,
+  assetCategories: null,
+  assetEntries: null,
   seeded: false,
 }
 
@@ -86,10 +96,11 @@ function omitUndefined<T>(value: T): T {
 async function seedIfNeeded() {
   if (cache.seeded) return
 
-  const [catSnap, pmSnap, budgetSnap] = await Promise.all([
+  const [catSnap, pmSnap, budgetSnap, assetCatSnap] = await Promise.all([
     getDocs(col('categories')),
     getDocs(col('paymentMethods')),
     getDoc(budgetRef()),
+    getDocs(col('assetCategories')),
   ])
 
   if (catSnap.empty && pmSnap.empty && !budgetSnap.exists()) {
@@ -99,6 +110,9 @@ async function seedIfNeeded() {
     seed.paymentMethods.forEach((p) =>
       batch.set(doc(col('paymentMethods'), p.id), omitUndefined(p)),
     )
+    seed.assetCategories.forEach((c) =>
+      batch.set(doc(col('assetCategories'), c.id), omitUndefined(c)),
+    )
     batch.set(budgetRef(), omitUndefined(seed.budget))
     await batch.commit()
     cache.categories = seed.categories
@@ -106,6 +120,8 @@ async function seedIfNeeded() {
     cache.expenses = []
     cache.recurrings = []
     cache.budget = seed.budget
+    cache.assetCategories = seed.assetCategories
+    cache.assetEntries = []
   } else {
     cache.categories = catSnap.docs.map((d) => d.data() as Category)
     cache.paymentMethods = pmSnap.docs.map((d) => d.data() as PaymentMethod)
@@ -123,6 +139,23 @@ async function seedIfNeeded() {
       const unc = seed.categories.find((c) => c.id === UNCATEGORIZED_ID)!
       await setDoc(doc(col('categories'), unc.id), omitUndefined(unc))
       cache.categories = [unc, ...cache.categories]
+    }
+
+    if (assetCatSnap.empty) {
+      const entrySnap = await getDocs(col('assetEntries'))
+      if (entrySnap.empty) {
+        const seed = createSeedData()
+        const batch = writeBatch(getFirestoreDb())
+        seed.assetCategories.forEach((c) =>
+          batch.set(doc(col('assetCategories'), c.id), omitUndefined(c)),
+        )
+        await batch.commit()
+        cache.assetCategories = seed.assetCategories
+      } else {
+        cache.assetCategories = []
+      }
+    } else {
+      cache.assetCategories = assetCatSnap.docs.map((d) => d.data() as AssetCategory)
     }
   }
 
@@ -149,6 +182,16 @@ async function loadRecurrings() {
   return cache.recurrings
 }
 
+async function loadAssetEntries() {
+  if (cache.assetEntries) {
+    cache.assetEntries = dedupeById(cache.assetEntries)
+    return cache.assetEntries
+  }
+  const snap = await getDocs(col('assetEntries'))
+  cache.assetEntries = snap.docs.map((d) => d.data() as AssetEntry)
+  return cache.assetEntries
+}
+
 function upsertById<T extends { id: string }>(list: T[], item: T): T[] {
   const idx = list.findIndex((x) => x.id === item.id)
   if (idx < 0) return [...list, item]
@@ -169,6 +212,8 @@ export function clearStorageCache() {
   cache.expenses = null
   cache.recurrings = null
   cache.budget = null
+  cache.assetCategories = null
+  cache.assetEntries = null
   cache.seeded = false
 }
 
@@ -199,6 +244,14 @@ export function subscribeUserData(onChange: () => void): Unsubscribe {
         : DEFAULT_BUDGET
       onChange()
     }),
+    onSnapshot(collection(root, 'assetCategories'), (snap) => {
+      cache.assetCategories = snap.docs.map((d) => d.data() as AssetCategory)
+      onChange()
+    }),
+    onSnapshot(collection(root, 'assetEntries'), (snap) => {
+      cache.assetEntries = snap.docs.map((d) => d.data() as AssetEntry)
+      onChange()
+    }),
   ]
 
   return () => unsubs.forEach((stop) => stop())
@@ -207,7 +260,11 @@ export function subscribeUserData(onChange: () => void): Unsubscribe {
 export const firestoreAdapter: DataAdapter = {
   async getAll() {
     await seedIfNeeded()
-    const [expenses, recurrings] = await Promise.all([loadExpenses(), loadRecurrings()])
+    const [expenses, recurrings, assetEntries] = await Promise.all([
+      loadExpenses(),
+      loadRecurrings(),
+      loadAssetEntries(),
+    ])
     return {
       version: 1 as const,
       categories: cache.categories ?? [],
@@ -215,6 +272,8 @@ export const firestoreAdapter: DataAdapter = {
       expenses,
       recurrings,
       budget: cache.budget ?? DEFAULT_BUDGET,
+      assetCategories: cache.assetCategories ?? [],
+      assetEntries,
     }
   },
 
@@ -224,12 +283,20 @@ export const firestoreAdapter: DataAdapter = {
     ;(await getDocs(col('paymentMethods'))).docs.forEach((d) => batch.delete(d.ref))
     ;(await getDocs(col('expenses'))).docs.forEach((d) => batch.delete(d.ref))
     ;(await getDocs(col('recurrings'))).docs.forEach((d) => batch.delete(d.ref))
+    ;(await getDocs(col('assetCategories'))).docs.forEach((d) => batch.delete(d.ref))
+    ;(await getDocs(col('assetEntries'))).docs.forEach((d) => batch.delete(d.ref))
     data.categories.forEach((c) => batch.set(doc(col('categories'), c.id), omitUndefined(c)))
     data.paymentMethods.forEach((p) =>
       batch.set(doc(col('paymentMethods'), p.id), omitUndefined(p)),
     )
     data.expenses.forEach((e) => batch.set(doc(col('expenses'), e.id), omitUndefined(e)))
     data.recurrings.forEach((r) => batch.set(doc(col('recurrings'), r.id), omitUndefined(r)))
+    data.assetCategories.forEach((c) =>
+      batch.set(doc(col('assetCategories'), c.id), omitUndefined(c)),
+    )
+    data.assetEntries.forEach((e) =>
+      batch.set(doc(col('assetEntries'), e.id), omitUndefined(e)),
+    )
     batch.set(budgetRef(), omitUndefined(data.budget))
     await batch.commit()
     cache.categories = data.categories
@@ -237,6 +304,8 @@ export const firestoreAdapter: DataAdapter = {
     cache.expenses = data.expenses
     cache.recurrings = data.recurrings
     cache.budget = data.budget
+    cache.assetCategories = data.assetCategories
+    cache.assetEntries = data.assetEntries
     cache.seeded = true
     return data
   },
@@ -418,5 +487,88 @@ export const firestoreAdapter: DataAdapter = {
     await setDoc(budgetRef(), omitUndefined(updated))
     cache.budget = updated
     return updated
+  },
+
+  async getAssetCategories() {
+    await seedIfNeeded()
+    return cache.assetCategories ?? []
+  },
+
+  async createAssetCategory(input: CreateAssetCategoryInput) {
+    await seedIfNeeded()
+    const name = input.name.trim()
+    const dup = (cache.assetCategories ?? []).some((c) => c.name === name)
+    if (dup) throw new Error('같은 이름의 자산 카테고리가 있어요.')
+    const ts = nowIso()
+    const category: AssetCategory = { ...input, name, id: createId('acat'), createdAt: ts, updatedAt: ts }
+    await setDoc(doc(col('assetCategories'), category.id), omitUndefined(category))
+    cache.assetCategories = upsertById(cache.assetCategories ?? [], category)
+    return category
+  },
+
+  async updateAssetCategory(input: UpdateAssetCategoryInput) {
+    await seedIfNeeded()
+    const list = cache.assetCategories ?? []
+    const prev = list.find((c) => c.id === input.id)
+    if (!prev) throw new Error('자산 카테고리를 찾을 수 없습니다.')
+    const nextName = input.name
+    if (nextName !== undefined) {
+      const dup = list.some((c) => c.id !== input.id && c.name === nextName.trim())
+      if (dup) throw new Error('같은 이름의 자산 카테고리가 있어요.')
+    }
+    const updated: AssetCategory = {
+      ...prev,
+      ...input,
+      name: nextName !== undefined ? nextName.trim() : prev.name,
+      updatedAt: nowIso(),
+    }
+    await setDoc(doc(col('assetCategories'), updated.id), omitUndefined(updated))
+    cache.assetCategories = list.map((c) => (c.id === updated.id ? updated : c))
+    return updated
+  },
+
+  async deleteAssetCategory(id: string) {
+    await seedIfNeeded()
+    const entries = await loadAssetEntries()
+    const batch = writeBatch(getFirestoreDb())
+    batch.delete(doc(col('assetCategories'), id))
+    const ts = nowIso()
+    entries.forEach((e) => {
+      if (e.categoryId !== id) return
+      batch.set(doc(col('assetEntries'), e.id), omitUndefined({ ...e, categoryId: null, updatedAt: ts }))
+    })
+    await batch.commit()
+    cache.assetCategories = (cache.assetCategories ?? []).filter((c) => c.id !== id)
+    cache.assetEntries = entries.map((e) =>
+      e.categoryId === id ? { ...e, categoryId: null, updatedAt: ts } : e,
+    )
+  },
+
+  async getAssetEntries() {
+    await seedIfNeeded()
+    return loadAssetEntries()
+  },
+
+  async createAssetEntry(input: CreateAssetEntryInput) {
+    const ts = nowIso()
+    const entry: AssetEntry = { ...input, id: createId('aent'), createdAt: ts, updatedAt: ts }
+    await setDoc(doc(col('assetEntries'), entry.id), omitUndefined(entry))
+    cache.assetEntries = upsertById(await loadAssetEntries(), entry)
+    return entry
+  },
+
+  async updateAssetEntry(input: UpdateAssetEntryInput) {
+    const list = await loadAssetEntries()
+    const prev = list.find((e) => e.id === input.id)
+    if (!prev) throw new Error('자산 기록을 찾을 수 없습니다.')
+    const updated: AssetEntry = { ...prev, ...input, updatedAt: nowIso() }
+    await setDoc(doc(col('assetEntries'), updated.id), omitUndefined(updated))
+    cache.assetEntries = list.map((e) => (e.id === updated.id ? updated : e))
+    return updated
+  },
+
+  async deleteAssetEntry(id: string) {
+    await deleteDoc(doc(col('assetEntries'), id))
+    cache.assetEntries = (await loadAssetEntries()).filter((e) => e.id !== id)
   },
 }

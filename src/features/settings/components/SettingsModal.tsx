@@ -16,14 +16,19 @@ import { CATEGORY_PALETTE } from '@/shared/storage'
 import { getBudgetAmount } from '@/features/budget/utils/budget'
 import { formatAmount, parseAmountInput } from '@/shared/lib/format'
 import { logOut, useAuthUser } from '@/shared/lib/auth'
+import {
+  useAssetCategories,
+  useAssetCategoryMutations,
+} from '@/features/asset/hooks/useAssets'
 
-type Tab = 'budget' | 'category' | 'payment' | 'recurring'
+type Tab = 'budget' | 'category' | 'payment' | 'recurring' | 'asset'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'budget', label: '예산' },
   { id: 'category', label: '카테고리' },
   { id: 'payment', label: '결제수단' },
   { id: 'recurring', label: '반복 지출' },
+  { id: 'asset', label: '자산' },
 ]
 
 const HINTS: Record<Tab, string> = {
@@ -31,6 +36,7 @@ const HINTS: Record<Tab, string> = {
   category: '지출을 분류할 카테고리를 관리합니다. 삭제 시 연결 지출은 미분류로 옮겨집니다.',
   payment: '카드·현금 등 결제수단을 등록하세요.',
   recurring: '구독·고정비처럼 매달 반복되는 지출 규칙을 관리합니다.',
+  asset: '자산 카테고리를 관리합니다. 삭제 시 연결 기록은 미분류로 옮겨집니다.',
 }
 
 export function SettingsModal() {
@@ -46,10 +52,12 @@ export function SettingsModal() {
   const { data: categories = [] } = useCategories()
   const { data: methods = [] } = usePaymentMethods()
   const { data: recurrings = [] } = useRecurrings()
+  const { data: assetCategories = [] } = useAssetCategories()
   const saveBudget = useSaveMonthBudget()
   const categoryMut = useCategoryMutations()
   const methodMut = usePaymentMethodMutations()
   const recurringMut = useRecurringMutations()
+  const assetCategoryMut = useAssetCategoryMutations()
   const { user } = useAuthUser()
   const [loggingOut, setLoggingOut] = useState(false)
 
@@ -64,6 +72,11 @@ export function SettingsModal() {
   const [editingCatColor, setEditingCatColor] = useState<string>(CATEGORY_PALETTE[0])
   const [editingMethod, setEditingMethod] = useState<string | null>(null)
   const [editingMethodName, setEditingMethodName] = useState('')
+  const [newAssetCatName, setNewAssetCatName] = useState('')
+  const [newAssetCatColor, setNewAssetCatColor] = useState<string>(CATEGORY_PALETTE[0])
+  const [editingAssetCat, setEditingAssetCat] = useState<string | null>(null)
+  const [editingAssetCatName, setEditingAssetCatName] = useState('')
+  const [editingAssetCatColor, setEditingAssetCatColor] = useState<string>(CATEGORY_PALETTE[0])
 
   useEffect(() => {
     if (!open || !budget) return
@@ -123,6 +136,14 @@ export function SettingsModal() {
       description: '이후 예정 회차가 더 이상 표시되지 않습니다.',
     })
     if (ok) await recurringMut.remove.mutateAsync(id)
+  }
+
+  const deleteAssetCategory = async (id: string, name: string) => {
+    const ok = await askConfirm({
+      title: `'${name}' 카테고리를 삭제할까요?`,
+      description: '연결된 기록은 미분류로 옮겨져요.',
+    })
+    if (ok) await assetCategoryMut.remove.mutateAsync(id)
   }
 
   return (
@@ -437,6 +458,134 @@ export function SettingsModal() {
           >
             + 반복 지출 추가
           </button>
+        </div>
+      ) : null}
+
+      {tab === 'asset' ? (
+        <div className="flex flex-col gap-3">
+          <ul className="m-0 list-none space-y-2 p-0">
+            {assetCategories.map((c) => (
+              <li
+                key={c.id}
+                className="flex flex-col gap-2 rounded-xl border border-line px-3 py-2.5"
+              >
+                <div className="flex items-center gap-3">
+                  <span
+                    className="h-3 w-3 shrink-0 rounded-full"
+                    style={{
+                      backgroundColor:
+                        editingAssetCat === c.id ? editingAssetCatColor : c.color,
+                    }}
+                    aria-hidden="true"
+                  />
+                  {editingAssetCat === c.id ? (
+                    <input
+                      autoFocus
+                      value={editingAssetCatName}
+                      onChange={(e) => setEditingAssetCatName(e.target.value.slice(0, 10))}
+                      className="h-8 flex-1 rounded-lg border border-line-strong px-2 text-sm"
+                    />
+                  ) : (
+                    <span className="flex-1 text-sm font-medium">{c.name}</span>
+                  )}
+                  <span className="flex gap-1">
+                    {editingAssetCat === c.id ? (
+                      <button
+                        type="button"
+                        className="text-xs font-medium text-ink"
+                        onClick={async () => {
+                          await assetCategoryMut.update.mutateAsync({
+                            id: c.id,
+                            name: editingAssetCatName.trim() || c.name,
+                            color: editingAssetCatColor,
+                          })
+                          setEditingAssetCat(null)
+                        }}
+                      >
+                        완료
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="text-xs text-muted"
+                        onClick={() => {
+                          setEditingAssetCat(c.id)
+                          setEditingAssetCatName(c.name)
+                          setEditingAssetCatColor(c.color)
+                        }}
+                      >
+                        수정
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="text-xs text-danger"
+                      onClick={() => void deleteAssetCategory(c.id, c.name)}
+                    >
+                      삭제
+                    </button>
+                  </span>
+                </div>
+                {editingAssetCat === c.id ? (
+                  <div className="flex flex-wrap gap-2 pl-6">
+                    {CATEGORY_PALETTE.map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        aria-label={`색상 ${color}`}
+                        aria-pressed={editingAssetCatColor === color}
+                        className={`h-7 w-7 rounded-full ${
+                          editingAssetCatColor === color ? 'ring-2 ring-offset-2 ring-ink' : ''
+                        }`}
+                        style={{ backgroundColor: color }}
+                        onClick={() => setEditingAssetCatColor(color)}
+                      />
+                    ))}
+                  </div>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+          <div className="rounded-xl border border-dashed border-line-strong p-3">
+            <p className="m-0 mb-2 text-xs font-medium text-muted">+ 카테고리 추가</p>
+            <input
+              value={newAssetCatName}
+              onChange={(e) => setNewAssetCatName(e.target.value.slice(0, 10))}
+              placeholder="이름"
+              className="mb-2 h-9 w-full rounded-lg border border-line-strong px-3 text-sm"
+            />
+            <div className="mb-3 flex flex-wrap gap-2">
+              {CATEGORY_PALETTE.map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  aria-label={`색상 ${color}`}
+                  aria-pressed={newAssetCatColor === color}
+                  className={`h-7 w-7 rounded-full ${
+                    newAssetCatColor === color ? 'ring-2 ring-offset-2 ring-ink' : ''
+                  }`}
+                  style={{ backgroundColor: color }}
+                  onClick={() => setNewAssetCatColor(color)}
+                />
+              ))}
+            </div>
+            <button
+              type="button"
+              className="h-9 rounded-lg bg-ink px-3 text-sm font-medium text-white"
+              onClick={async () => {
+                const name = newAssetCatName.trim()
+                if (!name) return
+                await assetCategoryMut.create.mutateAsync({
+                  name,
+                  color: newAssetCatColor,
+                  order: assetCategories.reduce((max, c) => Math.max(max, c.order), -1) + 1,
+                })
+                setNewAssetCatName('')
+              }}
+            >
+              추가
+            </button>
+          </div>
         </div>
       ) : null}
 

@@ -25,6 +25,8 @@
   --color-warning: #F0A202;
   --color-fill: #3D4450;
   --color-warn: #D9534F;
+  --color-rate-plus: #C44545;
+  --color-rate-minus: #3B6FD8;
   --focus-ring: 0 0 0 3px rgba(216, 180, 214, 0.55);
 }
 
@@ -52,6 +54,8 @@
   --color-warning: var(--color-warning);
   --color-fill: var(--color-fill);
   --color-warn: var(--color-warn);
+  --color-rate-plus: var(--color-rate-plus);
+  --color-rate-minus: var(--color-rate-minus);
   --shadow-panel: var(--shadow-panel);
 }
 

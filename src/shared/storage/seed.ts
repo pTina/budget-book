@@ -1,6 +1,13 @@
-import type { AppData, Category, PaymentMethod } from '@/shared/types'
+import type { AppData, AssetCategory, Category, PaymentMethod } from '@/shared/types'
 
 export const UNCATEGORIZED_ID = 'cat-uncategorized'
+export const ASSET_UNCATEGORIZED_COLOR = '#D4D8DE'
+
+export const DEFAULT_ASSET_CATEGORIES: Omit<AssetCategory, 'createdAt' | 'updatedAt'>[] = [
+  { id: 'acat-pension', name: '연금', color: '#C0E8DD', order: 0 },
+  { id: 'acat-stock', name: '주식', color: '#A3C6EB', order: 1 },
+  { id: 'acat-coin', name: '코인', color: '#F7E2B8', order: 2 },
+]
 
 export const CATEGORY_PALETTE = [
   '#C0E8DD',
@@ -72,6 +79,12 @@ export function createSeedData(): AppData {
     { id: 'pm-cash', name: '현금', createdAt: ts, updatedAt: ts },
   ]
 
+  const assetCategories: AssetCategory[] = DEFAULT_ASSET_CATEGORIES.map((c) => ({
+    ...c,
+    createdAt: ts,
+    updatedAt: ts,
+  }))
+
   return {
     version: 1,
     categories,
@@ -84,5 +97,7 @@ export function createSeedData(): AppData {
       applyToNextMonth: true,
       monthlyAmounts: {},
     },
+    assetCategories,
+    assetEntries: [],
   }
 }

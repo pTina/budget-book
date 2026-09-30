@@ -52,6 +52,8 @@ function FirebaseGate({ children }: { children: ReactNode }) {
         void queryClient.removeQueries({ queryKey: queryKeys.expenses })
         void queryClient.removeQueries({ queryKey: queryKeys.recurrings })
         void queryClient.removeQueries({ queryKey: queryKeys.budget })
+        void queryClient.removeQueries({ queryKey: queryKeys.assetCategories })
+        void queryClient.removeQueries({ queryKey: queryKeys.assetEntries })
 
         if (!user) {
           setSignedIn(false)
@@ -67,6 +69,8 @@ function FirebaseGate({ children }: { children: ReactNode }) {
             void queryClient.invalidateQueries({ queryKey: queryKeys.expenses })
             void queryClient.invalidateQueries({ queryKey: queryKeys.recurrings })
             void queryClient.invalidateQueries({ queryKey: queryKeys.budget })
+            void queryClient.invalidateQueries({ queryKey: queryKeys.assetCategories })
+            void queryClient.invalidateQueries({ queryKey: queryKeys.assetEntries })
           })
           setSignedIn(true)
           setReady(true)

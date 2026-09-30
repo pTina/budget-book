@@ -11,5 +11,7 @@ export async function invalidateAll(
     qc.invalidateQueries({ queryKey: queryKeys.expenses }),
     qc.invalidateQueries({ queryKey: queryKeys.recurrings }),
     qc.invalidateQueries({ queryKey: queryKeys.budget }),
+    qc.invalidateQueries({ queryKey: queryKeys.assetCategories }),
+    qc.invalidateQueries({ queryKey: queryKeys.assetEntries }),
   ])
 }

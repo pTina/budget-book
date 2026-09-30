@@ -1,6 +1,7 @@
 import { Button } from '@/shared/ui/Button'
 import { SegmentControl } from '@/shared/ui/SegmentControl'
 import { SettingsIcon } from '@/shared/ui/SettingsIcon'
+import { AppAreaSwitch } from '@/shared/ui/AppAreaSwitch'
 import { useUiStore } from '@/store/useUiStore'
 import { formatMonthLabel } from '@/shared/lib/format'
 import type { ViewMode } from '@/shared/types'
@@ -25,6 +26,7 @@ export function CalendarHeader() {
         <h1 className="hidden m-0 text-lg font-bold tracking-tight text-ink md:block">
           가계부
         </h1>
+        <AppAreaSwitch />
 
         <div className="flex shrink-0 items-center md:gap-2">
           <button

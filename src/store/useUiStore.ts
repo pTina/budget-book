@@ -1,20 +1,24 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { formatDateKey, formatMonthKey } from '@/shared/lib/format'
-import type { DetailsGroupBy, RecurringEditScope, ViewMode } from '@/shared/types'
+import type { AssetView, DetailsGroupBy, RecurringEditScope, ViewMode } from '@/shared/types'
 
-type SettingsTab = 'budget' | 'category' | 'payment' | 'recurring'
+type SettingsTab = 'budget' | 'category' | 'payment' | 'recurring' | 'asset'
 
 type UiState = {
   monthKey: string
   selectedDate: string
   viewMode: ViewMode
   detailsGroupBy: DetailsGroupBy
+  assetPeriod: string
+  assetView: AssetView
 
   dayExpenseOpen: boolean
   expenseFormOpen: boolean
   expenseFormId: string | null
   expenseFormRecurringOn: boolean
+  assetFormOpen: boolean
+  assetFormId: string | null
   settingsOpen: boolean
   settingsTab: SettingsTab
   confirmOpen: boolean
@@ -32,11 +36,15 @@ type UiState = {
   shiftMonth: (delta: number) => void
   setViewMode: (mode: ViewMode) => void
   setDetailsGroupBy: (mode: DetailsGroupBy) => void
+  setAssetPeriod: (period: string) => void
+  setAssetView: (view: AssetView) => void
 
   openDayExpense: (date?: string) => void
   closeDayExpense: () => void
   openExpenseForm: (opts?: { id?: string | null; recurringOn?: boolean; date?: string }) => void
   closeExpenseForm: () => void
+  openAssetForm: (opts?: { id?: string | null }) => void
+  closeAssetForm: () => void
   openSettings: (tab?: SettingsTab) => void
   closeSettings: () => void
   askConfirm: (opts: {
@@ -59,11 +67,15 @@ export const useUiStore = create<UiState>()(
       selectedDate: formatDateKey(today),
       viewMode: 'calendar',
       detailsGroupBy: 'category',
+      assetPeriod: formatMonthKey(today),
+      assetView: 'trend',
 
       dayExpenseOpen: false,
       expenseFormOpen: false,
       expenseFormId: null,
       expenseFormRecurringOn: false,
+      assetFormOpen: false,
+      assetFormId: null,
       settingsOpen: false,
       settingsTab: 'budget',
       confirmOpen: false,
@@ -97,6 +109,8 @@ export const useUiStore = create<UiState>()(
       },
       setViewMode: (mode) => set({ viewMode: mode }),
       setDetailsGroupBy: (mode) => set({ detailsGroupBy: mode }),
+      setAssetPeriod: (period) => set({ assetPeriod: period }),
+      setAssetView: (view) => set({ assetView: view }),
 
       openDayExpense: (date) =>
         set({
@@ -118,6 +132,16 @@ export const useUiStore = create<UiState>()(
           expenseFormOpen: false,
           expenseFormId: null,
           expenseFormRecurringOn: false,
+        }),
+      openAssetForm: (opts) =>
+        set({
+          assetFormOpen: true,
+          assetFormId: opts?.id ?? null,
+        }),
+      closeAssetForm: () =>
+        set({
+          assetFormOpen: false,
+          assetFormId: null,
         }),
       openSettings: (tab = 'budget') =>
         set({ settingsOpen: true, settingsTab: tab }),
@@ -154,6 +178,8 @@ export const useUiStore = create<UiState>()(
         selectedDate: s.selectedDate,
         viewMode: s.viewMode,
         detailsGroupBy: s.detailsGroupBy,
+        assetPeriod: s.assetPeriod,
+        assetView: s.assetView,
       }),
     },
   ),

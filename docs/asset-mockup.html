@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>자산현황 화면 설계</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+:root {
+  --font-sans: "IBM Plex Sans KR", ui-sans-serif, system-ui, sans-serif;
+  --color-ink: #2B2D31;
+  --color-muted: #5C6068;
+  --color-faint: #9CA1A9;
+  --color-line: #EDEEF1;
+  --color-line-strong: #E0E2E7;
+  --color-canvas: #FAFAFB;
+  --color-paper: #FFFFFF;
+  --color-accent: #D8B4D6;
+  --color-sage: #C0E8DD;
+  --color-personal: #A3C6EB;
+  --color-butter: #F7E2B8;
+  --shadow-panel: 0 18px 40px rgba(43, 45, 49, 0.06);
+  --focus-ring: 0 0 0 3px rgba(216, 180, 214, 0.55);
+  --color-rate-plus: #C44545;
+  --color-rate-minus: #3B6FD8;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; font-family: var(--font-sans); color: var(--color-ink); background: #ececee; -webkit-font-smoothing: antialiased; }
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.page { min-height: 100%; display: flex; flex-direction: column; align-items: center; padding: 24px 16px 40px; }
+.preview { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; max-width: 430px; margin: 0 0 12px; }
+.page.is-pc .preview { max-width: 1080px; }
+.note { margin: 0; flex: 1; font-size: 12px; color: var(--color-muted); line-height: 1.5; }
+.frame { width: 100%; max-width: 430px; min-height: 760px; background: var(--color-canvas); border: 1px solid var(--color-line-strong); border-radius: 24px; overflow: hidden; box-shadow: var(--shadow-panel); display: flex; flex-direction: column; }
+.page.is-pc .frame { max-width: 1080px; min-height: 680px; border-radius: 16px; }
+.header { display: flex; align-items: center; gap: 8px; padding: 12px 16px; background: var(--color-paper); border-bottom: 1px solid var(--color-line); }
+.page.is-pc .header { padding: 12px 24px; gap: 12px; }
+.brand { margin: 0; font-size: 16px; font-weight: 700; letter-spacing: -0.02em; }
+.page.is-pc .brand { display: block; }
+.seg { display: inline-flex; margin-left: auto; padding: 4px; border: 1px solid var(--color-line); border-radius: 12px; background: var(--color-canvas); }
+.seg button { height: 32px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; color: var(--color-muted); font-size: 13px; font-weight: 500; }
+.seg button.on { background: var(--color-paper); color: var(--color-ink); box-shadow: 0 1px 2px rgba(43, 45, 49, 0.08); }
+.seg-fill { margin-left: 0; width: 100%; }
+.seg-fill button { flex: 1; padding: 0 8px; }
+.icon-btn { width: 32px; height: 32px; border: 0; border-radius: 999px; background: transparent; color: var(--color-muted); }
+.toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: var(--color-paper); border-bottom: 1px solid var(--color-line); }
+.page.is-pc .toolbar { padding: 8px 24px; }
+.nav { display: flex; align-items: center; }
+.nav button { width: 32px; height: 32px; border: 0; border-radius: 8px; background: transparent; color: var(--color-muted); }
+.nav-label { min-width: 5.5rem; margin: 0; text-align: center; font-size: 14px; font-weight: 600; tabular-nums: true; }
+.toolbar .seg { margin-left: 0; }
+.chart { display: flex; align-items: flex-end; gap: 12px; height: 132px; margin: 28px 0 4px; padding: 0; list-style: none; }
+.chart li { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; width: 32px; height: 100%; }
+.chart b { display: block; width: 24px; border-radius: 6px 6px 0 0; background: #A3C6EB; }
+.chart li.on b { background: var(--color-ink); }
+.chart span { font-size: 11px; color: var(--color-faint); }
+.diff { margin: 8px 0 0; font-size: 13px; color: var(--color-muted); }
+.diff em { font-style: normal; font-weight: 600; color: var(--color-ink); }
+.cost { margin: 6px 0 0; font-size: 13px; color: var(--color-muted); }
+.cost em { font-style: normal; font-weight: 600; }
+.cost .plus, .row-rate.plus, .item-rate.plus { color: var(--color-rate-plus); }
+.cost .minus, .row-rate.minus, .item-rate.minus { color: var(--color-rate-minus); }
+.row-sub { display: block; margin-top: 2px; font-size: 12px; color: var(--color-faint); font-weight: 400; }
+.row-amt { display: flex; flex-direction: column; align-items: flex-end; font-size: 14px; font-weight: 600; tabular-nums: true; }
+.row-rate { margin-top: 2px; font-size: 12px; font-weight: 500; }
+.item-amt-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
+.item-sub { font-size: 11px; color: var(--color-faint); font-weight: 500; tabular-nums: true; }
+.item-rate { font-style: normal; font-weight: 500; }
+.item-memo { display: block; margin-top: 2px; font-size: 11px; color: var(--color-faint); font-weight: 400; }
+.field-hint { display: block; margin-top: 4px; font-size: 11px; color: var(--color-faint); }
+.body { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.page.is-pc .body { flex-direction: row; align-items: stretch; }
+.sub { padding: 12px 16px 0; }
+.page.is-pc .sub { display: none; }
+.panel { flex: 1; padding: 16px; overflow: auto; }
+.page.is-pc #snapshot { display: flex !important; flex-direction: column; flex: 1; min-width: 0; overflow: hidden; background: var(--color-paper); border-right: 1px solid var(--color-line); padding: 24px; }
+.page.is-pc #history { display: flex !important; flex-direction: column; width: 380px; flex: none; min-height: 0; background: var(--color-paper); padding: 16px; }
+.page.is-pc .snap { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.snap-grid { display: flex; flex-direction: column; }
+.page.is-pc .snap-grid { flex-direction: row; align-items: stretch; gap: 40px; flex: 1; min-height: 0; margin-top: 32px; }
+.page.is-pc .snap-chart { flex: 1.4; min-width: 0; }
+.page.is-pc .chart { width: 100%; max-width: 480px; height: 220px; margin-top: 0; gap: 16px; }
+.page.is-pc .chart li { width: auto; flex: 1; min-width: 40px; max-width: 56px; }
+.page.is-pc .chart b { width: 100%; max-width: 40px; }
+.history-head { display: none; align-items: center; justify-content: space-between; margin: 0 0 12px; padding: 0 8px; }
+.page.is-pc .history-head { display: flex; }
+.history-head h2 { margin: 0; font-size: 14px; font-weight: 600; }
+.history-list { flex: 1; overflow: auto; }
+.hidden { display: none !important; }
+.total-label { margin: 0; font-size: 12px; color: var(--color-muted); }
+.total-value { margin: 6px 0 0; font-size: 28px; font-weight: 700; letter-spacing: -0.03em; tabular-nums: true; }
+.hint { margin: 6px 0 0; font-size: 12px; color: var(--color-faint); }
+.rows { margin: 20px 0 0; padding: 0; list-style: none; }
+.page.is-pc .rows { flex: 1; min-width: 0; margin: 0; overflow: auto; }
+.row { display: flex; align-items: center; gap: 10px; padding: 10px 0; }
+.dot { width: 10px; height: 10px; border-radius: 999px; flex-shrink: 0; }
+.row-name { display: flex; flex-direction: column; flex: 1; min-width: 0; font-size: 14px; font-weight: 600; }
+.bar { height: 4px; margin-top: 6px; border-radius: 999px; background: var(--color-line); overflow: hidden; }
+.bar > span { display: block; height: 100%; border-radius: inherit; }
+.filters { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 16px; }
+.chip { height: 32px; padding: 0 12px; border: 1px solid var(--color-line-strong); border-radius: 999px; background: var(--color-paper); color: var(--color-muted); font-size: 13px; font-weight: 500; }
+.chip.on { background: var(--color-ink); border-color: var(--color-ink); color: #fff; }
+.day { margin: 0 0 6px; padding: 0 8px; font-size: 13px; font-weight: 600; }
+.item { display: flex; width: 100%; align-items: flex-start; gap: 12px; padding: 10px 8px; border: 0; border-radius: 12px; background: transparent; text-align: left; }
+.item:hover { background: var(--color-canvas); }
+.item-main { flex: 1; min-width: 0; }
+.item-title { display: flex; align-items: center; gap: 6px; }
+.item-title strong { font-size: 14px; font-weight: 500; }
+.badge { padding: 2px 6px; border-radius: 6px; background: var(--color-canvas); color: var(--color-muted); font-size: 10px; font-weight: 600; }
+.badge.buy { background: var(--color-sage); color: var(--color-ink); }
+.badge.hold { background: #D2D8EA; color: var(--color-ink); }
+.item-meta { display: block; margin-top: 2px; font-size: 12px; color: var(--color-faint); }
+.item-amt { font-size: 14px; font-weight: 600; tabular-nums: true; }
+.item-amt.sell { color: var(--color-muted); }
+.fab { display: flex; align-items: center; justify-content: center; height: 44px; margin: 8px 16px 16px; border: 0; border-radius: 12px; background: var(--color-ink); color: #fff; font-size: 14px; font-weight: 600; }
+.page.is-pc .fab { display: none; }
+.btn-sm { height: 32px; padding: 0 12px; border: 0; border-radius: 8px; background: var(--color-ink); color: #fff; font-size: 13px; font-weight: 600; }
+.modal { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(43, 45, 49, 0.3); }
+.dialog { width: 100%; max-width: 400px; max-height: calc(100vh - 32px); display: flex; flex-direction: column; border-radius: 16px; background: var(--color-paper); box-shadow: var(--shadow-panel); }
+.dialog-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--color-line); }
+.dialog-head h2 { margin: 0; font-size: 16px; font-weight: 600; }
+.close { width: 36px; height: 36px; border: 0; border-radius: 8px; background: transparent; color: var(--color-muted); }
+.dialog-body { padding: 16px 20px; overflow: auto; }
+.field { display: block; margin-bottom: 14px; }
+.field span { display: block; margin-bottom: 6px; font-size: 12px; font-weight: 500; color: var(--color-muted); }
+.field-input { width: 100%; height: 40px; padding: 0 12px; border: 1px solid var(--color-line-strong); border-radius: 12px; background: var(--color-paper); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.dialog-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--color-line); }
+.btn { height: 40px; padding: 0 16px; border: 0; border-radius: 12px; font-size: 14px; font-weight: 600; }
+.btn-ghost { background: transparent; color: var(--color-muted); }
+.btn-ink { background: var(--color-ink); color: #fff; }
+  </style>
+</head>
+<body>
+  <div class="page" id="page">
+    <div class="preview">
+      <p class="note">미리보기용 목업입니다. 총액은 평가금액입니다. 수익률은 + 빨강, − 파랑, 0%는 기본색입니다. 목록에는 메모가 있을 때만 표시합니다.</p>
+      <div class="seg" role="tablist" aria-label="미리보기 크기">
+        <button type="button" class="on" data-device="mobile">모바일</button>
+        <button type="button" data-device="pc">PC</button>
+      </div>
+    </div>
+    <div class="frame">
+      <header class="header">
+        <h1 class="brand">가계부</h1>
+        <div class="seg" role="tablist" aria-label="앱 영역">
+          <button type="button" disabled>가계부</button>
+          <button type="button" class="on">자산</button>
+        </div>
+        <button type="button" class="icon-btn" aria-label="설정">⚙</button>
+      </header>
+      <div class="toolbar">
+        <div class="seg" role="tablist" aria-label="기간 단위">
+          <button type="button" class="on" data-period="month">월</button>
+          <button type="button" data-period="year">년</button>
+        </div>
+        <div class="nav">
+          <button type="button" aria-label="이전" id="prev-period">‹</button>
+          <p class="nav-label" id="period-label">2026.09</p>
+          <button type="button" aria-label="다음" id="next-period">›</button>
+        </div>
+      </div>
+      <div class="body">
+        <div class="sub">
+          <div class="seg" role="tablist" aria-label="자산 보기">
+            <button type="button" class="on" data-view="snapshot">추이</button>
+            <button type="button" data-view="history">세부내역</button>
+          </div>
+        </div>
+
+        <section id="snapshot" class="panel">
+          <div id="snapshot-month" class="snap">
+            <p class="total-label">9월 평가금액</p>
+            <p class="total-value">13,210,000원</p>
+            <p class="diff">전월 대비 <em>+1,520,000원</em></p>
+            <p class="cost">원금 12,480,000원 · 평가손익 <em class="plus">+730,000원 (+5.8%)</em></p>
+            <div class="snap-grid">
+              <div class="snap-chart">
+                <ul class="chart" aria-label="최근 6개월 평가금액 추이">
+                  <li><b style="height:58%"></b><span>4</span></li>
+                  <li><b style="height:62%"></b><span>5</span></li>
+                  <li><b style="height:68%"></b><span>6</span></li>
+                  <li><b style="height:64%"></b><span>7</span></li>
+                  <li><b style="height:72%"></b><span>8</span></li>
+                  <li class="on"><b style="height:92%"></b><span>9</span></li>
+                </ul>
+                <p class="hint">월말 평가액 추이 · 원금은 직접 입력</p>
+              </div>
+              <ul class="rows">
+                <li>
+                  <div class="row">
+                    <span class="dot" style="background:#C0E8DD"></span>
+                    <span class="row-name">연금<span class="row-sub">원금 8,000,000원</span></span>
+                    <span class="row-amt">8,020,000원<span class="row-rate plus">+0.3%</span></span>
+                  </div>
+                  <div class="bar"><span style="width:64%; background:#C0E8DD"></span></div>
+                </li>
+                <li>
+                  <div class="row">
+                    <span class="dot" style="background:#A3C6EB"></span>
+                    <span class="row-name">주식<span class="row-sub">원금 3,200,000원</span></span>
+                    <span class="row-amt">3,640,000원<span class="row-rate plus">+13.8%</span></span>
+                  </div>
+                  <div class="bar"><span style="width:26%; background:#A3C6EB"></span></div>
+                </li>
+                <li>
+                  <div class="row">
+                    <span class="dot" style="background:#F7E2B8"></span>
+                    <span class="row-name">코인<span class="row-sub">원금 1,280,000원</span></span>
+                    <span class="row-amt">1,550,000원<span class="row-rate plus">+21.1%</span></span>
+                  </div>
+                  <div class="bar"><span style="width:10%; background:#F7E2B8"></span></div>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div id="snapshot-year" class="snap hidden">
+            <p class="total-label">2026 평가금액</p>
+            <p class="total-value">13,210,000원</p>
+            <p class="diff">전년 대비 <em>+3,410,000원</em></p>
+            <p class="cost">원금 12,480,000원 · 평가손익 <em class="plus">+730,000원 (+5.8%)</em></p>
+            <div class="snap-grid">
+              <div class="snap-chart">
+                <ul class="chart" aria-label="연도별 평가금액 추이">
+                  <li><b style="height:38%"></b><span>22</span></li>
+                  <li><b style="height:48%"></b><span>23</span></li>
+                  <li><b style="height:58%"></b><span>24</span></li>
+                  <li><b style="height:70%"></b><span>25</span></li>
+                  <li class="on"><b style="height:92%"></b><span>26</span></li>
+                </ul>
+                <p class="hint">연말 평가액 추이 · 최근 5년</p>
+              </div>
+              <ul class="rows">
+                <li>
+                  <div class="row">
+                    <span class="dot" style="background:#C0E8DD"></span>
+                    <span class="row-name">연금<span class="row-sub">원금 8,000,000원</span></span>
+                    <span class="row-amt">8,020,000원<span class="row-rate plus">+0.3%</span></span>
+                  </div>
+                  <div class="bar"><span style="width:64%; background:#C0E8DD"></span></div>
+                </li>
+                <li>
+                  <div class="row">
+                    <span class="dot" style="background:#A3C6EB"></span>
+                    <span class="row-name">주식<span class="row-sub">원금 3,200,000원</span></span>
+                    <span class="row-amt">3,640,000원<span class="row-rate plus">+13.8%</span></span>
+                  </div>
+                  <div class="bar"><span style="width:26%; background:#A3C6EB"></span></div>
+                </li>
+                <li>
+                  <div class="row">
+                    <span class="dot" style="background:#F7E2B8"></span>
+                    <span class="row-name">코인<span class="row-sub">원금 1,280,000원</span></span>
+                    <span class="row-amt">1,550,000원<span class="row-rate plus">+21.1%</span></span>
+                  </div>
+                  <div class="bar"><span style="width:10%; background:#F7E2B8"></span></div>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section id="history" class="panel hidden">
+          <div class="history-head">
+            <h2>세부내역</h2>
+            <button type="button" class="btn-sm" id="open-form-pc">+ 기록</button>
+          </div>
+          <div class="filters">
+            <button type="button" class="chip on">전체</button>
+            <button type="button" class="chip">연금</button>
+            <button type="button" class="chip">주식</button>
+            <button type="button" class="chip">코인</button>
+          </div>
+          <div id="history-month">
+            <p class="day">9월 18일</p>
+            <button type="button" class="item">
+              <span class="item-main">
+                <span class="item-title"><strong>삼성전자</strong><span class="badge buy">매수</span></span>
+                <span class="item-meta">주식 · 원금</span>
+                <span class="item-memo">배당 재투자</span>
+              </span>
+              <span class="item-amt-wrap">
+                <span class="item-amt">+1,200,000원</span>
+                <span class="item-sub">평가 1,350,000원 <em class="item-rate plus">+12.5%</em></span>
+              </span>
+            </button>
+            <p class="day">9월 4일</p>
+            <button type="button" class="item">
+              <span class="item-main">
+                <span class="item-title"><strong>IRP 추가</strong><span class="badge buy">매수</span></span>
+                <span class="item-meta">연금 · 원금</span>
+              </span>
+              <span class="item-amt">+500,000원</span>
+            </button>
+            <button type="button" class="item">
+              <span class="item-main">
+                <span class="item-title"><strong>국민연금</strong><span class="badge hold">보유</span></span>
+                <span class="item-meta">연금 · 원금 7,500,000원</span>
+                <span class="item-memo">IRP 이전분</span>
+              </span>
+              <span class="item-amt-wrap">
+                <span class="item-amt">8,020,000원</span>
+                <span class="item-sub">평가 <em class="item-rate plus">+6.9%</em></span>
+              </span>
+            </button>
+            <button type="button" class="item">
+              <span class="item-main">
+                <span class="item-title"><strong>비트코인</strong><span class="badge">매도</span></span>
+                <span class="item-meta">코인</span>
+                <span class="item-memo">일부 익절</span>
+              </span>
+              <span class="item-amt sell">−320,000원</span>
+            </button>
+          </div>
+          <div id="history-year" class="hidden">
+            <p class="day">9월</p>
+            <button type="button" class="item">
+              <span class="item-main">
+                <span class="item-title"><strong>삼성전자</strong><span class="badge buy">매수</span></span>
+                <span class="item-meta">주식 · 9.18 · 원금</span>
+                <span class="item-memo">배당 재투자</span>
+              </span>
+              <span class="item-amt-wrap">
+                <span class="item-amt">+1,200,000원</span>
+                <span class="item-sub">평가 1,350,000원 <em class="item-rate plus">+12.5%</em></span>
+              </span>
+            </button>
+            <button type="button" class="item">
+              <span class="item-main">
+                <span class="item-title"><strong>IRP 추가</strong><span class="badge buy">매수</span></span>
+                <span class="item-meta">연금 · 9.4</span>
+              </span>
+              <span class="item-amt">+500,000원</span>
+            </button>
+            <p class="day">8월</p>
+            <button type="button" class="item">
+              <span class="item-main">
+                <span class="item-title"><strong>KODEX 200</strong><span class="badge buy">매수</span></span>
+                <span class="item-meta">주식 · 8.12</span>
+              </span>
+              <span class="item-amt">+400,000원</span>
+            </button>
+          </div>
+        </section>
+      </div>
+      <button type="button" class="fab" id="open-form">+ 기록</button>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="modal" role="presentation">
+    <div class="dialog" role="dialog" aria-labelledby="form-title">
+      <div class="dialog-head">
+        <h2 id="form-title">자산 기록</h2>
+        <button type="button" class="close" id="close-form" aria-label="팝업 닫기">✕</button>
+      </div>
+      <div class="dialog-body">
+        <label class="field">
+          <span>구분</span>
+          <div class="seg seg-fill" id="type-seg" role="tablist" aria-label="구분">
+            <button type="button" class="on">매수</button>
+            <button type="button">매도</button>
+            <button type="button">보유</button>
+          </div>
+        </label>
+        <div class="field">
+          <span>카테고리</span>
+          <div class="chips">
+            <button type="button" class="chip on">연금</button>
+            <button type="button" class="chip">주식</button>
+            <button type="button" class="chip">코인</button>
+            <button type="button" class="chip">+ 추가</button>
+          </div>
+        </div>
+        <label class="field">
+          <span>투자 원금</span>
+          <input class="field-input" id="principal-input" value="1,200,000" inputmode="numeric" />
+        </label>
+        <label class="field" id="value-field">
+          <span>평가금액</span>
+          <input class="field-input" id="value-input" value="1,350,000" inputmode="numeric" />
+          <span class="field-hint">비워 두면 원금과 같게 저장합니다. 시세 연동 없음.</span>
+        </label>
+        <label class="field">
+          <span>날짜</span>
+          <input class="field-input" type="date" value="2026-09-18" />
+        </label>
+        <label class="field">
+          <span>메모</span>
+          <input class="field-input" placeholder="선택 사항" value="삼성전자" />
+        </label>
+      </div>
+      <div class="dialog-foot">
+        <button type="button" class="btn btn-ghost" id="cancel-form">취소</button>
+        <button type="button" class="btn btn-ink" id="save-form">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let period = 'month'
+    let year = 2026
+    let month = 9
+    const periodLabel = document.getElementById('period-label')
+    const snapshotMonth = document.getElementById('snapshot-month')
+    const snapshotYear = document.getElementById('snapshot-year')
+    const historyMonth = document.getElementById('history-month')
+    const historyYear = document.getElementById('history-year')
+    const pad = (n) => String(n).padStart(2, '0')
+    const renderPeriod = () => {
+      periodLabel.textContent = period === 'year' ? String(year) : `${year}.${pad(month)}`
+      snapshotMonth.classList.toggle('hidden', period === 'year')
+      snapshotYear.classList.toggle('hidden', period === 'month')
+      historyMonth.classList.toggle('hidden', period === 'year')
+      historyYear.classList.toggle('hidden', period === 'month')
+    }
+    document.querySelectorAll('[data-period]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('[data-period]').forEach((b) => b.classList.toggle('on', b === btn))
+        period = btn.dataset.period
+        renderPeriod()
+      })
+    })
+    document.getElementById('prev-period').addEventListener('click', () => {
+      if (period === 'year') year -= 1
+      else if (month === 1) { year -= 1; month = 12 }
+      else month -= 1
+      renderPeriod()
+    })
+    document.getElementById('next-period').addEventListener('click', () => {
+      if (period === 'year') year += 1
+      else if (month === 12) { year += 1; month = 1 }
+      else month += 1
+      renderPeriod()
+    })
+    const snapshot = document.getElementById('snapshot')
+    const history = document.getElementById('history')
+    const modal = document.getElementById('modal')
+    document.querySelectorAll('[data-view]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (document.getElementById('page').classList.contains('is-pc')) return
+        document.querySelectorAll('[data-view]').forEach((b) => b.classList.toggle('on', b === btn))
+        const isHistory = btn.dataset.view === 'history'
+        snapshot.classList.toggle('hidden', isHistory)
+        history.classList.toggle('hidden', !isHistory)
+      })
+    })
+    document.querySelectorAll('#type-seg button').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#type-seg button').forEach((b) => b.classList.toggle('on', b === btn))
+        const isSell = btn.textContent.trim() === '매도'
+        document.getElementById('value-field').classList.toggle('hidden', isSell)
+      })
+    })
+    document.querySelectorAll('.filters .chip').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.filters .chip').forEach((b) => b.classList.toggle('on', b === btn))
+      })
+    })
+    document.querySelectorAll('[data-device]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('[data-device]').forEach((b) => b.classList.toggle('on', b === btn))
+        const isPc = btn.dataset.device === 'pc'
+        document.getElementById('page').classList.toggle('is-pc', isPc)
+        if (isPc) {
+          snapshot.classList.remove('hidden')
+          history.classList.remove('hidden')
+        } else {
+          const historyOn = document.querySelector('[data-view="history"]').classList.contains('on')
+          snapshot.classList.toggle('hidden', historyOn)
+          history.classList.toggle('hidden', !historyOn)
+        }
+      })
+    })
+    const open = () => modal.classList.remove('hidden')
+    const close = () => modal.classList.add('hidden')
+    document.getElementById('open-form').addEventListener('click', open)
+    document.getElementById('open-form-pc').addEventListener('click', open)
+    document.getElementById('close-form').addEventListener('click', close)
+    document.getElementById('cancel-form').addEventListener('click', close)
+    document.getElementById('save-form').addEventListener('click', close)
+    modal.addEventListener('click', (e) => { if (e.target === modal) close() })
+  </script>
+</body>
+</html>

@@ -6,14 +6,18 @@ export const adapter: DataAdapter = firestoreAdapter
 
 export type { DataAdapter } from './types'
 export type {
+  CreateAssetCategoryInput,
+  CreateAssetEntryInput,
   CreateCategoryInput,
   CreateExpenseInput,
   CreatePaymentMethodInput,
   CreateRecurringInput,
+  UpdateAssetCategoryInput,
+  UpdateAssetEntryInput,
   UpdateCategoryInput,
   UpdateExpenseInput,
   UpdatePaymentMethodInput,
   UpdateRecurringInput,
 } from './types'
-export { UNCATEGORIZED_ID, CATEGORY_PALETTE, createSeedData } from './seed'
+export { UNCATEGORIZED_ID, CATEGORY_PALETTE, ASSET_UNCATEGORIZED_COLOR, createSeedData } from './seed'
 export { clearStorageCache, subscribeUserData } from './firestoreAdapter'

@@ -1,5 +1,7 @@
 import type {
   AppData,
+  AssetCategory,
+  AssetEntry,
   BudgetSettings,
   Category,
   Expense,
@@ -9,11 +11,15 @@ import type {
 import { createId } from '@/shared/lib/id'
 import { createSeedData, UNCATEGORIZED_ID } from './seed'
 import type {
+  CreateAssetCategoryInput,
+  CreateAssetEntryInput,
   CreateCategoryInput,
   CreateExpenseInput,
   CreatePaymentMethodInput,
   CreateRecurringInput,
   DataAdapter,
+  UpdateAssetCategoryInput,
+  UpdateAssetEntryInput,
   UpdateCategoryInput,
   UpdateExpenseInput,
   UpdatePaymentMethodInput,
@@ -26,6 +32,23 @@ function nowIso(): string {
   return new Date().toISOString()
 }
 
+function normalize(data: Partial<AppData> | null): AppData {
+  const seed = createSeedData()
+  if (!data) return seed
+  return {
+    version: 1,
+    categories: data.categories ?? seed.categories,
+    paymentMethods: data.paymentMethods ?? seed.paymentMethods,
+    expenses: data.expenses ?? [],
+    recurrings: data.recurrings ?? [],
+    budget: data.budget ?? seed.budget,
+    assetCategories: Array.isArray(data.assetCategories)
+      ? data.assetCategories
+      : seed.assetCategories,
+    assetEntries: Array.isArray(data.assetEntries) ? data.assetEntries : [],
+  }
+}
+
 function read(): AppData {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
@@ -34,7 +57,12 @@ function read(): AppData {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(seed))
       return seed
     }
-    return JSON.parse(raw) as AppData
+    const parsed = JSON.parse(raw) as Partial<AppData>
+    const needsMigrate =
+      !Array.isArray(parsed.assetCategories) || !Array.isArray(parsed.assetEntries)
+    const data = normalize(parsed)
+    if (needsMigrate) localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+    return data
   } catch {
     const seed = createSeedData()
     localStorage.setItem(STORAGE_KEY, JSON.stringify(seed))
@@ -240,6 +268,87 @@ export const localStorageAdapter: DataAdapter = {
       d.budget = updated
     })
     return updated
+  },
+
+  async getAssetCategories() {
+    return read().assetCategories
+  },
+
+  async createAssetCategory(input: CreateAssetCategoryInput) {
+    const ts = nowIso()
+    const category: AssetCategory = {
+      ...input,
+      id: createId('acat'),
+      createdAt: ts,
+      updatedAt: ts,
+    }
+    mutate((d) => {
+      const name = category.name.trim()
+      if (!name) throw new Error('이름을 입력하세요.')
+      const dup = d.assetCategories.some((c) => c.name === name)
+      if (dup) throw new Error('같은 이름의 자산 카테고리가 있어요.')
+      d.assetCategories.push({ ...category, name })
+    })
+    return { ...category, name: category.name.trim() }
+  },
+
+  async updateAssetCategory(input: UpdateAssetCategoryInput) {
+    let updated!: AssetCategory
+    mutate((d) => {
+      const idx = d.assetCategories.findIndex((c) => c.id === input.id)
+      if (idx < 0) throw new Error('자산 카테고리를 찾을 수 없습니다.')
+      if (input.name !== undefined) {
+        const dup = d.assetCategories.some((c) => c.id !== input.id && c.name === input.name)
+        if (dup) throw new Error('같은 이름의 자산 카테고리가 있어요.')
+      }
+      updated = { ...d.assetCategories[idx], ...input, updatedAt: nowIso() }
+      d.assetCategories[idx] = updated
+    })
+    return updated
+  },
+
+  async deleteAssetCategory(id: string) {
+    mutate((d) => {
+      d.assetCategories = d.assetCategories.filter((c) => c.id !== id)
+      d.assetEntries = d.assetEntries.map((e) =>
+        e.categoryId === id ? { ...e, categoryId: null, updatedAt: nowIso() } : e,
+      )
+    })
+  },
+
+  async getAssetEntries() {
+    return read().assetEntries
+  },
+
+  async createAssetEntry(input: CreateAssetEntryInput) {
+    const ts = nowIso()
+    const entry: AssetEntry = {
+      ...input,
+      id: createId('aent'),
+      createdAt: ts,
+      updatedAt: ts,
+    }
+    mutate((d) => {
+      d.assetEntries.push(entry)
+    })
+    return entry
+  },
+
+  async updateAssetEntry(input: UpdateAssetEntryInput) {
+    let updated!: AssetEntry
+    mutate((d) => {
+      const idx = d.assetEntries.findIndex((e) => e.id === input.id)
+      if (idx < 0) throw new Error('자산 기록을 찾을 수 없습니다.')
+      updated = { ...d.assetEntries[idx], ...input, updatedAt: nowIso() }
+      d.assetEntries[idx] = updated
+    })
+    return updated
+  },
+
+  async deleteAssetEntry(id: string) {
+    mutate((d) => {
+      d.assetEntries = d.assetEntries.filter((e) => e.id !== id)
+    })
   },
 }
 

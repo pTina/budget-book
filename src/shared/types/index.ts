@@ -61,6 +61,33 @@ export type BudgetSettings = {
   monthlyAmounts: Record<string, number>
 }
 
+export type AssetType = 'buy' | 'sell' | 'hold'
+export type AssetPeriodUnit = 'month' | 'year'
+export type AssetView = 'trend' | 'details'
+
+export type AssetCategory = {
+  id: string
+  name: string
+  color: string
+  order: number
+  createdAt: string
+  updatedAt: string
+}
+
+export type AssetEntry = {
+  id: string
+  date: string
+  type: AssetType
+  amount: number
+  /** 평가금액. 없으면 원금과 동일. 매도에는 쓰지 않는다. */
+  value?: number
+  categoryId: string | null
+  title: string
+  memo?: string
+  createdAt: string
+  updatedAt: string
+}
+
 export type AppData = {
   version: 1
   categories: Category[]
@@ -68,6 +95,8 @@ export type AppData = {
   expenses: Expense[]
   recurrings: Recurring[]
   budget: BudgetSettings
+  assetCategories: AssetCategory[]
+  assetEntries: AssetEntry[]
 }
 
 /** 캘린더/목록에 표시되는 지출 (실지출 + 반복 전개) */

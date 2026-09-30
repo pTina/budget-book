@@ -1,5 +1,7 @@
 import type {
   AppData,
+  AssetCategory,
+  AssetEntry,
   BudgetSettings,
   Category,
   Expense,
@@ -33,6 +35,16 @@ export type UpdateRecurringInput = Partial<
   Omit<Recurring, 'id' | 'createdAt'>
 > & { id: string }
 
+export type CreateAssetCategoryInput = Omit<AssetCategory, 'id' | 'createdAt' | 'updatedAt'>
+export type UpdateAssetCategoryInput = Partial<Omit<AssetCategory, 'id' | 'createdAt'>> & {
+  id: string
+}
+
+export type CreateAssetEntryInput = Omit<AssetEntry, 'id' | 'createdAt' | 'updatedAt'>
+export type UpdateAssetEntryInput = Partial<Omit<AssetEntry, 'id' | 'createdAt'>> & {
+  id: string
+}
+
 /** 어댑터 인터페이스 — localStorage / Firestore 교체 시 이 계약만 유지 */
 export interface DataAdapter {
   getAll(): Promise<AppData>
@@ -60,4 +72,14 @@ export interface DataAdapter {
 
   getBudget(): Promise<BudgetSettings>
   updateBudget(input: Partial<BudgetSettings>): Promise<BudgetSettings>
+
+  getAssetCategories(): Promise<AssetCategory[]>
+  createAssetCategory(input: CreateAssetCategoryInput): Promise<AssetCategory>
+  updateAssetCategory(input: UpdateAssetCategoryInput): Promise<AssetCategory>
+  deleteAssetCategory(id: string): Promise<void>
+
+  getAssetEntries(): Promise<AssetEntry[]>
+  createAssetEntry(input: CreateAssetEntryInput): Promise<AssetEntry>
+  updateAssetEntry(input: UpdateAssetEntryInput): Promise<AssetEntry>
+  deleteAssetEntry(id: string): Promise<void>
 }
